@@ -1,17 +1,9 @@
 extends RefCounted
 class_name TerrainColliderBuilder
 
-static func build_playable_collision_shape(map_data: TerrainMapData) -> ConcavePolygonShape3D:
-	var playable_min := map_data.get_playable_min()
-	var playable_max := map_data.get_playable_max()
-	var min_grid := Vector2i(
-		int(round(playable_min.x / map_data.cell_size)),
-		int(round(playable_min.y / map_data.cell_size))
-	)
-	var max_grid := Vector2i(
-		int(round(playable_max.x / map_data.cell_size)),
-		int(round(playable_max.y / map_data.cell_size))
-	)
+static func build_visual_collision_shape(map_data: TerrainMapData) -> ConcavePolygonShape3D:
+	var min_grid := Vector2i.ZERO
+	var max_grid := map_data.get_total_cell_count()
 	var triangles := PackedVector3Array()
 
 	for z in range(min_grid.y, max_grid.y):

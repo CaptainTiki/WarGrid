@@ -64,6 +64,16 @@ func is_chunk_valid(chunk_coord: Vector2i) -> bool:
 	var total_chunks := get_total_chunks()
 	return chunk_coord.x >= 0 and chunk_coord.y >= 0 and chunk_coord.x < total_chunks.x and chunk_coord.y < total_chunks.y
 
+func is_local_position_in_playable_area(local_position: Vector3) -> bool:
+	var playable_min := get_playable_min()
+	var playable_max := get_playable_max()
+	return (
+		local_position.x >= playable_min.x
+		and local_position.z >= playable_min.y
+		and local_position.x <= playable_max.x
+		and local_position.z <= playable_max.y
+	)
+
 func get_height(grid: Vector2i) -> float:
 	if not is_grid_point_valid(grid):
 		return default_height
@@ -95,8 +105,6 @@ func apply_height_brush(local_center: Vector3, radius: float, amount: float) -> 
 	var radius_cells := int(ceil(radius / cell_size))
 	var center_grid := local_to_grid(local_center)
 	var radius_squared := radius * radius
-	var playable_min := get_playable_min()
-	var playable_max := get_playable_max()
 
 	for z in range(center_grid.y - radius_cells, center_grid.y + radius_cells + 1):
 		for x in range(center_grid.x - radius_cells, center_grid.x + radius_cells + 1):
@@ -106,9 +114,6 @@ func apply_height_brush(local_center: Vector3, radius: float, amount: float) -> 
 
 			var point_x := float(x) * cell_size
 			var point_z := float(z) * cell_size
-			if point_x < playable_min.x or point_z < playable_min.y or point_x > playable_max.x or point_z > playable_max.y:
-				continue
-
 			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
 			if distance_squared > radius_squared:
 				continue

@@ -46,11 +46,11 @@ func _apply_active_brush(delta: float) -> void:
 	if _last_pick_point == null:
 		return
 
-	var raising := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	var lowering := Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or (raising and Input.is_key_pressed(KEY_SHIFT))
-	if not raising and not lowering:
+	var painting := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	if not painting:
 		return
 
+	var lowering := Input.is_key_pressed(KEY_SHIFT)
 	height_brush_tool.apply(terrain, _last_pick_point, lowering, delta)
 
 func _ensure_editor_camera() -> void:

@@ -7,6 +7,7 @@ const TerrainChunkScene := preload("res://terrain/terrain_chunk.tscn")
 @export var chunk_size_meters := 64
 @export var border_chunks := 1
 @export var cell_size := 1.0
+@export var debug_plain_gray := false
 
 var map_data: TerrainMapData
 var chunks := {}
@@ -15,7 +16,7 @@ var dirty_chunks: Array[Vector2i] = []
 var _chunk_root: Node3D
 var _bounds_root: Node3D
 var _pick_body: StaticBody3D
-var _grass_material: StandardMaterial3D
+var _terrain_material: StandardMaterial3D
 
 func _ready() -> void:
 	create_flat_grass_map()
@@ -89,26 +90,26 @@ func get_center_position() -> Vector3:
 
 func _build_all_chunks() -> void:
 	var total_chunks := map_data.get_total_chunks()
-	_grass_material = _create_grass_material()
+	_terrain_material = _create_terrain_material()
 	for z in range(total_chunks.y):
 		for x in range(total_chunks.x):
 			var chunk_coord := Vector2i(x, z)
 			var chunk := TerrainChunkScene.instantiate() as TerrainChunk
 			_chunk_root.add_child(chunk)
-			chunk.setup(chunk_coord, map_data, _grass_material)
+			chunk.setup(chunk_coord, map_data, _terrain_material)
 			chunks[_chunk_key(chunk_coord)] = chunk
 
 func _rebuild_collider() -> void:
 	if _pick_body == null:
 		_pick_body = StaticBody3D.new()
-		_pick_body.name = "PlayablePickCollider"
+		_pick_body.name = "TerrainPickCollider"
 		add_child(_pick_body)
 		var collision_shape := CollisionShape3D.new()
 		collision_shape.name = "CollisionShape3D"
 		_pick_body.add_child(collision_shape)
 
 	var shape_node := _pick_body.get_node("CollisionShape3D") as CollisionShape3D
-	shape_node.shape = TerrainColliderBuilder.build_playable_collision_shape(map_data)
+	shape_node.shape = TerrainColliderBuilder.build_visual_collision_shape(map_data)
 
 func _rebuild_bounds() -> void:
 	_clear_children(_bounds_root)
@@ -156,9 +157,10 @@ func _clear_children(node: Node) -> void:
 	for child in node.get_children():
 		child.free()
 
-func _create_grass_material() -> StandardMaterial3D:
+func _create_terrain_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.24, 0.55, 0.20)
+	material.resource_name = "TerrainGrassMaterial"
+	material.albedo_color = Color(0.24, 0.58, 0.18) if not debug_plain_gray else Color(0.55, 0.55, 0.55)
 	material.roughness = 0.9
 	return material
 
