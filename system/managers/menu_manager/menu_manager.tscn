@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://l1ea5t46a31e"]
+
+[ext_resource type="Script" uid="uid://dq2xw0o7pshkn" path="res://system/managers/menu_manager/menu_manager.gd" id="1_15plp"]
+
+[node name="MenuManager" type="Control" unique_id=2065962680]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_15plp")

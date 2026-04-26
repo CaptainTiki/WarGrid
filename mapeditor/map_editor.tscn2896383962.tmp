@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cxvik22bgj68c"]
+
+[ext_resource type="Script" uid="uid://c4nptwishxfly" path="res://mapeditor/map_editor.gd" id="1_qvbsr"]
+[ext_resource type="Script" uid="uid://cmxlihyhms710" path="res://terrain/terrain.gd" id="2_w3mjr"]
+
+[node name="MapEditor" type="Node3D" unique_id=1896567692]
+script = ExtResource("1_qvbsr")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1933503567]
+
+[node name="Terrain" type="Node3D" parent="." unique_id=1427965974]
+script = ExtResource("2_w3mjr")
