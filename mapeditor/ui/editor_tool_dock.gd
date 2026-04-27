@@ -8,6 +8,7 @@ signal brush_falloff_changed(falloff: float)
 signal material_channel_changed(channel: int)
 signal walkable_value_changed(value: int)
 signal buildable_value_changed(value: int)
+signal fow_height_changed(height: int)
 signal overlay_enabled_changed(enabled: bool)
 signal overlay_mode_changed(mode: int)
 signal save_map_requested
@@ -19,6 +20,7 @@ const TOOL_FLATTEN := 2
 const TOOL_PAINT_MATERIAL := 3
 const TOOL_WALKABLE_PAINT := 4
 const TOOL_BUILDABLE_PAINT := 5
+const TOOL_FOW_HEIGHT_PAINT := 6
 
 @onready var raise_lower_button: Button = %RaiseLowerButton
 @onready var smooth_button: Button = %SmoothButton
@@ -26,6 +28,7 @@ const TOOL_BUILDABLE_PAINT := 5
 @onready var paint_material_button: Button = %PaintMaterialButton
 @onready var walkable_paint_button: Button = %WalkablePaintButton
 @onready var buildable_paint_button: Button = %BuildablePaintButton
+@onready var fow_height_paint_button: Button = %FowHeightPaintButton
 @onready var tool_name_label: Label = %ToolNameLabel
 @onready var radius_slider: HSlider = %RadiusSlider
 @onready var radius_value_label: Label = %RadiusValueLabel
@@ -41,6 +44,8 @@ const TOOL_BUILDABLE_PAINT := 5
 @onready var walkable_value_option: OptionButton = %WalkableValueOption
 @onready var buildable_properties_panel: VBoxContainer = %BuildablePropertiesPanel
 @onready var buildable_value_option: OptionButton = %BuildableValueOption
+@onready var fow_height_properties_panel: VBoxContainer = %FowHeightPropertiesPanel
+@onready var fow_height_option: OptionButton = %FowHeightOption
 @onready var overlay_enabled_check_box: CheckBox = %OverlayEnabledCheckBox
 @onready var overlay_mode_option: OptionButton = %OverlayModeOption
 @onready var save_button: Button = %SaveButton
@@ -56,12 +61,14 @@ func _ready() -> void:
 	paint_material_button.pressed.connect(_select_paint_material_tool)
 	walkable_paint_button.pressed.connect(_select_walkable_paint_tool)
 	buildable_paint_button.pressed.connect(_select_buildable_paint_tool)
+	fow_height_paint_button.pressed.connect(_select_fow_height_paint_tool)
 	radius_slider.value_changed.connect(_on_radius_slider_changed)
 	strength_slider.value_changed.connect(_on_strength_slider_changed)
 	falloff_slider.value_changed.connect(_on_falloff_slider_changed)
 	material_channel_option.item_selected.connect(_on_material_channel_selected)
 	walkable_value_option.item_selected.connect(_on_walkable_value_selected)
 	buildable_value_option.item_selected.connect(_on_buildable_value_selected)
+	fow_height_option.item_selected.connect(_on_fow_height_selected)
 	overlay_enabled_check_box.toggled.connect(_on_overlay_enabled_toggled)
 	overlay_mode_option.item_selected.connect(_on_overlay_mode_selected)
 	save_button.pressed.connect(_on_save_pressed)
@@ -69,6 +76,7 @@ func _ready() -> void:
 	_configure_material_channel_option()
 	_configure_walkable_value_option()
 	_configure_buildable_value_option()
+	_configure_fow_height_option()
 	_configure_overlay_mode_option()
 	set_active_tool(_active_tool)
 	set_brush_radius(radius_slider.value)
@@ -84,6 +92,7 @@ func set_active_tool(tool_id: int) -> void:
 	paint_material_button.button_pressed = tool_id == TOOL_PAINT_MATERIAL
 	walkable_paint_button.button_pressed = tool_id == TOOL_WALKABLE_PAINT
 	buildable_paint_button.button_pressed = tool_id == TOOL_BUILDABLE_PAINT
+	fow_height_paint_button.button_pressed = tool_id == TOOL_FOW_HEIGHT_PAINT
 	_syncing = false
 
 	match tool_id:
@@ -99,9 +108,12 @@ func set_active_tool(tool_id: int) -> void:
 			tool_name_label.text = "Walkable Paint"
 		TOOL_BUILDABLE_PAINT:
 			tool_name_label.text = "Buildable Paint"
+		TOOL_FOW_HEIGHT_PAINT:
+			tool_name_label.text = "FOW Height Paint"
 	material_properties_panel.visible = tool_id == TOOL_PAINT_MATERIAL
 	walkable_properties_panel.visible = tool_id == TOOL_WALKABLE_PAINT
 	buildable_properties_panel.visible = tool_id == TOOL_BUILDABLE_PAINT
+	fow_height_properties_panel.visible = tool_id == TOOL_FOW_HEIGHT_PAINT
 	_set_continuous_brush_controls_enabled(not _is_categorical_paint_tool(tool_id))
 
 func set_material_channel(channel: int) -> void:
@@ -117,6 +129,11 @@ func set_walkable_value(value: int) -> void:
 func set_buildable_value(value: int) -> void:
 	_syncing = true
 	buildable_value_option.select(clampi(value, TerrainMapData.Buildable.OPEN, TerrainMapData.Buildable.BLOCKED))
+	_syncing = false
+
+func set_fow_height(height: int) -> void:
+	_syncing = true
+	fow_height_option.select(clampi(height, 0, 3))
 	_syncing = false
 
 func set_overlay_enabled(enabled: bool) -> void:
@@ -164,6 +181,9 @@ func _select_walkable_paint_tool() -> void:
 
 func _select_buildable_paint_tool() -> void:
 	_select_tool(TOOL_BUILDABLE_PAINT)
+
+func _select_fow_height_paint_tool() -> void:
+	_select_tool(TOOL_FOW_HEIGHT_PAINT)
 
 func _select_tool(tool_id: int) -> void:
 	if _syncing:
@@ -228,6 +248,18 @@ func _on_buildable_value_selected(index: int) -> void:
 	if not _syncing:
 		buildable_value_changed.emit(buildable_value_option.get_item_id(index))
 
+func _configure_fow_height_option() -> void:
+	fow_height_option.clear()
+	fow_height_option.add_item("Height 0", 0)
+	fow_height_option.add_item("Height 1", 1)
+	fow_height_option.add_item("Height 2", 2)
+	fow_height_option.add_item("Height 3", 3)
+	fow_height_option.select(0)
+
+func _on_fow_height_selected(index: int) -> void:
+	if not _syncing:
+		fow_height_changed.emit(fow_height_option.get_item_id(index))
+
 func _configure_overlay_mode_option() -> void:
 	overlay_mode_option.clear()
 	overlay_mode_option.add_item("None", TerrainMapData.OverlayMode.NONE)
@@ -252,7 +284,7 @@ func _set_continuous_brush_controls_enabled(enabled: bool) -> void:
 	falloff_row.modulate = row_color
 
 func _is_categorical_paint_tool(tool_id: int) -> bool:
-	return tool_id == TOOL_WALKABLE_PAINT or tool_id == TOOL_BUILDABLE_PAINT
+	return tool_id == TOOL_WALKABLE_PAINT or tool_id == TOOL_BUILDABLE_PAINT or tool_id == TOOL_FOW_HEIGHT_PAINT
 
 func _on_save_pressed() -> void:
 	save_map_requested.emit()

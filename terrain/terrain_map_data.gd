@@ -437,6 +437,37 @@ func apply_buildable_paint_brush(local_center: Vector3, radius: float, buildable
 
 	return dirty_chunks
 
+func apply_fow_height_paint_brush(local_center: Vector3, radius: float, fow_height: int) -> Array[Vector2i]:
+	var dirty_chunks: Array[Vector2i] = []
+	var dirty_lookup := {}
+	var radius_cells := int(ceil(radius / cell_size))
+	var center_cell := local_to_splat_pixel(local_center)
+	var radius_squared := radius * radius
+	var value := clampi(fow_height, 0, 3)
+	var playable_min: Vector2i = get_playable_cell_min()
+	var playable_max: Vector2i = get_playable_cell_max_exclusive()
+
+	for z in range(center_cell.y - radius_cells, center_cell.y + radius_cells + 1):
+		if z < playable_min.y or z >= playable_max.y:
+			continue
+		for x in range(center_cell.x - radius_cells, center_cell.x + radius_cells + 1):
+			if x < playable_min.x or x >= playable_max.x:
+				continue
+
+			var point_x := (float(x) + 0.5) * cell_size
+			var point_z := (float(z) + 0.5) * cell_size
+			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
+			if distance_squared > radius_squared:
+				continue
+
+			var index: int = _playable_index_for_visual_cell(Vector2i(x, z))
+			if index < 0 or index >= fow_height_data.size():
+				continue
+			fow_height_data[index] = value
+			_add_dirty_chunks_for_grid(Vector2i(x, z), dirty_chunks, dirty_lookup)
+
+	return dirty_chunks
+
 func local_to_splat_pixel(local_position: Vector3) -> Vector2i:
 	var size := get_splat_map_size()
 	return Vector2i(

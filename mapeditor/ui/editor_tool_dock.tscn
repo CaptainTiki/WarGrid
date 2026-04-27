@@ -71,6 +71,13 @@ toggle_mode = true
 text = "Buildable
 Paint"
 
+[node name="FowHeightPaintButton" type="Button" parent="MarginContainer/VBoxContainer/ToolGrid" unique_id=632763833]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "FOW
+Height"
+
 [node name="Separator" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=31916370]
 layout_mode = 2
 
@@ -219,6 +226,27 @@ layout_mode = 2
 text = "Buildable Type"
 
 [node name="BuildableValueOption" type="OptionButton" parent="MarginContainer/VBoxContainer/BuildablePropertiesPanel" unique_id=521122738]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="FowHeightPropertiesPanel" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=897140199]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBoxContainer/FowHeightPropertiesPanel" unique_id=280373514]
+layout_mode = 2
+
+[node name="HeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/FowHeightPropertiesPanel" unique_id=643220615]
+layout_mode = 2
+text = "FOW Height Paint"
+
+[node name="ValueLabel" type="Label" parent="MarginContainer/VBoxContainer/FowHeightPropertiesPanel" unique_id=773737220]
+layout_mode = 2
+text = "Height Level"
+
+[node name="FowHeightOption" type="OptionButton" parent="MarginContainer/VBoxContainer/FowHeightPropertiesPanel" unique_id=930086060]
 unique_name_in_owner = true
 layout_mode = 2
 

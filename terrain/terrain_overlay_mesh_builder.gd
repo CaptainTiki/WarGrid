@@ -117,14 +117,5 @@ static func _get_buildable_color(value: int) -> Color:
 			return Color(1.0, 0.0, 1.0, OVERLAY_ALPHA)
 
 static func _get_fow_height_color(value: int) -> Color:
-	match clampi(value, 0, 3):
-		0:
-			return Color(0.05, 0.05, 0.08, OVERLAY_ALPHA)
-		1:
-			return Color(0.15, 0.35, 0.8, OVERLAY_ALPHA)
-		2:
-			return Color(0.3, 0.8, 0.45, OVERLAY_ALPHA)
-		3:
-			return Color(1.0, 0.95, 0.35, OVERLAY_ALPHA)
-		_:
-			return Color(1.0, 1.0, 1.0, OVERLAY_ALPHA)
+	var brightness: float = lerpf(0.08, 1.0, float(clampi(value, 0, 3)) / 3.0)
+	return Color(brightness, brightness, brightness, OVERLAY_ALPHA)

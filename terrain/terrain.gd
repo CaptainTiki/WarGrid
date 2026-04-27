@@ -44,6 +44,7 @@ var _flatten_brush_stroke_active := false
 var _material_paint_brush_stroke_active := false
 var _walkable_paint_brush_stroke_active := false
 var _buildable_paint_brush_stroke_active := false
+var _fow_height_paint_brush_stroke_active := false
 var _flatten_target_height := 0.0
 
 func _ready() -> void:
@@ -167,6 +168,20 @@ func begin_buildable_paint_brush_stroke() -> void:
 
 func finish_buildable_paint_brush_stroke() -> void:
 	_buildable_paint_brush_stroke_active = false
+	_stroke_dirty_lookup.clear()
+
+func apply_fow_height_paint_brush(local_center: Vector3, radius: float, fow_height: int) -> void:
+	if map_data == null:
+		return
+
+	var touched_chunks := map_data.apply_fow_height_paint_brush(local_center, radius, fow_height)
+	queue_gameplay_dirty_chunks(touched_chunks, TerrainMapData.OverlayMode.FOW_HEIGHT)
+
+func begin_fow_height_paint_brush_stroke() -> void:
+	_fow_height_paint_brush_stroke_active = true
+
+func finish_fow_height_paint_brush_stroke() -> void:
+	_fow_height_paint_brush_stroke_active = false
 	_stroke_dirty_lookup.clear()
 
 func queue_dirty_chunks(chunk_coords: Array[Vector2i], pretty_normals: bool = false) -> void:
@@ -453,6 +468,7 @@ func _clear_rebuild_queues() -> void:
 	_material_paint_brush_stroke_active = false
 	_walkable_paint_brush_stroke_active = false
 	_buildable_paint_brush_stroke_active = false
+	_fow_height_paint_brush_stroke_active = false
 
 func _create_terrain_material() -> ShaderMaterial:
 	var material := ShaderMaterial.new()
