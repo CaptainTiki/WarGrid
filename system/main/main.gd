@@ -1,12 +1,29 @@
 extends Node3D
 class_name Main
 
+const MainMenuScene := preload("res://system/main_menu/main_menu.tscn")
+const GameRootScene := preload("res://game/game_root.tscn")
+const MapEditorScene := preload("res://mapeditor/map_editor.tscn")
 
-# Called when the node enters the scene tree for the first time.
+var _current_scene: Node
+
 func _ready() -> void:
-	pass # Replace with function body.
+	_show_main_menu()
 
+func _show_main_menu() -> void:
+	var main_menu := MainMenuScene.instantiate()
+	_set_current_scene(main_menu)
+	main_menu.game_requested.connect(_show_game)
+	main_menu.editor_requested.connect(_show_editor)
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(_delta: float) -> void:
-	pass
+func _show_game() -> void:
+	_set_current_scene(GameRootScene.instantiate())
+
+func _show_editor() -> void:
+	_set_current_scene(MapEditorScene.instantiate())
+
+func _set_current_scene(scene: Node) -> void:
+	if _current_scene != null:
+		_current_scene.queue_free()
+	_current_scene = scene
+	add_child(_current_scene)

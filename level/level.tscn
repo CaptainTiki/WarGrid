@@ -1,0 +1,13 @@
+[gd_scene load_steps=4 format=3 uid="uid://cyiylf4rbj1to"]
+
+[ext_resource type="Script" path="res://level/level.gd" id="1_y1t8g"]
+[ext_resource type="Script" uid="uid://cmxlihyhms710" path="res://terrain/terrain.gd" id="2_4jssj"]
+[ext_resource type="PackedScene" path="res://level/components/player_camera_rig.tscn" id="3_akgwb"]
+
+[node name="Level" type="Node3D"]
+script = ExtResource("1_y1t8g")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_4jssj")
+
+[node name="PlayerCameraRig" parent="." instance=ExtResource("3_akgwb")]

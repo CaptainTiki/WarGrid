@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://cwxg4q8d8m6ts"]
+
+[ext_resource type="Script" path="res://level/components/player_camera_rig.gd" id="1_smatd"]
+
+[node name="PlayerCameraRig" type="Node3D"]
+rotation = Vector3(0, 0.785398, 0)
+script = ExtResource("1_smatd")
+
+[node name="PitchPivot" type="Node3D" parent="."]
+rotation = Vector3(-0.785398, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="PitchPivot"]
+fov = 45.0
