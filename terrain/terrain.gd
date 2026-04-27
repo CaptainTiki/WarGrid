@@ -167,6 +167,69 @@ func get_center_position() -> Vector3:
 	var total_size := map_data.get_total_size()
 	return Vector3(total_size.x * 0.5, 0.0, total_size.y * 0.5)
 
+func save_map(path: String, map_name: String = "Authored Map") -> bool:
+	if map_data == null:
+		push_error("Cannot save: map_data is null")
+		return false
+
+	var resource := TerrainMapResource.new()
+	resource.map_name = map_name
+	resource.chunk_size_meters = map_data.chunk_size_meters
+	resource.cell_size = map_data.cell_size
+	resource.playable_chunks = map_data.playable_chunks
+	resource.border_chunks = map_data.border_chunks
+	resource.base_heights = map_data.base_heights.duplicate()
+
+	var error := ResourceSaver.save(resource, path)
+	if error == OK:
+		print("Map saved: %s" % path)
+		return true
+	else:
+		push_error("Failed to save map: error code %d" % error)
+		return false
+
+func load_map(path: String) -> bool:
+	var resource := ResourceLoader.load(path) as TerrainMapResource
+	if resource == null:
+		push_error("Failed to load map from: %s" % path)
+		return false
+
+	# Create new map data from resource
+	var new_map_data := TerrainMapData.new()
+	new_map_data.chunk_size_meters = resource.chunk_size_meters
+	new_map_data.cell_size = resource.cell_size
+	new_map_data.playable_chunks = resource.playable_chunks
+	new_map_data.border_chunks = resource.border_chunks
+	new_map_data._refresh_cached_sizes()
+
+	# Restore height data
+	new_map_data.base_heights = resource.base_heights.duplicate()
+	new_map_data.material_ids.resize(new_map_data.get_total_cell_count().x * new_map_data.get_total_cell_count().y)
+	for i in new_map_data.material_ids.size():
+		new_map_data.material_ids[i] = TerrainMapData.GRASS_MATERIAL_ID
+
+	# Replace and rebuild
+	map_data = new_map_data
+	_clear_children(_chunk_root)
+	chunks.clear()
+	_clear_rebuild_queues()
+	_build_all_chunks()
+	_rebuild_bounds()
+
+	# Queue all chunks for mesh rebuild with pretty normals and collider rebuild
+	var total_chunks := map_data.get_total_chunks()
+	for z in range(total_chunks.y):
+		for x in range(total_chunks.x):
+			var chunk_coord := Vector2i(x, z)
+			_queue_mesh_rebuild(chunk_coord, true)
+			_queue_collider_rebuild(chunk_coord)
+
+	# Drain rebuild queues to complete the rebuild immediately
+	flush_rebuild_queues()
+
+	print("Map loaded: %s" % path)
+	return true
+
 func _build_all_chunks() -> void:
 	var total_chunks := map_data.get_total_chunks()
 	_terrain_material = _create_terrain_material()

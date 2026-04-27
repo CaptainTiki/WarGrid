@@ -28,6 +28,8 @@ func _ready() -> void:
 	tool_dock.brush_radius_changed.connect(_on_brush_radius_changed)
 	tool_dock.brush_strength_changed.connect(_on_brush_strength_changed)
 	tool_dock.brush_falloff_changed.connect(_on_brush_falloff_changed)
+	tool_dock.save_map_requested.connect(_on_save_map)
+	tool_dock.load_map_requested.connect(_on_load_map)
 	tool_dock.set_active_tool(_active_tool)
 	tool_dock.set_brush_radius(height_brush_tool.brush_data.radius)
 	tool_dock.set_brush_strength(height_brush_tool.brush_data.strength)
@@ -43,12 +45,22 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			var current_radius := _get_active_brush_data().radius
-			_set_brush_radius(current_radius + 1.0)
+			if Input.is_key_pressed(KEY_ALT):
+				# ALT + wheel up: increase brush size
+				var current_radius := _get_active_brush_data().radius
+				_set_brush_radius(current_radius + 1.0)
+			else:
+				# Wheel up alone: move camera up
+				camera_rig.move_vertical(1.0)
 			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			var current_radius := _get_active_brush_data().radius
-			_set_brush_radius(current_radius - 1.0)
+			if Input.is_key_pressed(KEY_ALT):
+				# ALT + wheel down: decrease brush size
+				var current_radius := _get_active_brush_data().radius
+				_set_brush_radius(current_radius - 1.0)
+			else:
+				# Wheel down alone: move camera down
+				camera_rig.move_vertical(-1.0)
 			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			_update_brush()
@@ -163,3 +175,20 @@ func _get_active_brush_data() -> TerrainBrushData:
 			return flatten_brush_tool.brush_data
 		_:
 			return height_brush_tool.brush_data
+
+func _on_save_map() -> void:
+	_end_brush_stroke()
+	var save_path := "res://levels/test_map/map_data.res"
+	var dir := DirAccess.open("res://levels/test_map")
+	if dir == null:
+		DirAccess.make_dir_recursive_absolute("res://levels/test_map")
+	terrain.save_map(save_path, "Test Map")
+
+func _on_load_map() -> void:
+	_end_brush_stroke()
+	var load_path := "res://levels/test_map/map_data.res"
+	if not ResourceLoader.exists(load_path):
+		push_error("Map file not found: %s" % load_path)
+		return
+	if terrain.load_map(load_path):
+		camera_rig.frame_point(terrain.get_center_position())

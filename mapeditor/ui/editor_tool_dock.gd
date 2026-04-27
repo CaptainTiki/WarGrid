@@ -5,6 +5,8 @@ signal tool_selected(tool_id: int)
 signal brush_radius_changed(radius: float)
 signal brush_strength_changed(strength: float)
 signal brush_falloff_changed(falloff: float)
+signal save_map_requested
+signal load_map_requested
 
 const TOOL_HEIGHT := 0
 const TOOL_SMOOTH := 1
@@ -26,6 +28,8 @@ const TOOL_BUILDABLE_PAINT := 5
 @onready var strength_value_label: Label = %StrengthValueLabel
 @onready var falloff_slider: HSlider = %FalloffSlider
 @onready var falloff_value_label: Label = %FalloffValueLabel
+@onready var save_button: Button = %SaveButton
+@onready var load_button: Button = %LoadButton
 
 var _active_tool := TOOL_HEIGHT
 var _syncing := false
@@ -40,6 +44,8 @@ func _ready() -> void:
 	radius_slider.value_changed.connect(_on_radius_slider_changed)
 	strength_slider.value_changed.connect(_on_strength_slider_changed)
 	falloff_slider.value_changed.connect(_on_falloff_slider_changed)
+	save_button.pressed.connect(_on_save_pressed)
+	load_button.pressed.connect(_on_load_pressed)
 	set_active_tool(_active_tool)
 	set_brush_radius(radius_slider.value)
 	set_brush_strength(strength_slider.value)
@@ -135,3 +141,9 @@ func _update_strength_label(strength: float) -> void:
 
 func _update_falloff_label(falloff: float) -> void:
 	falloff_value_label.text = "%.2f" % falloff
+
+func _on_save_pressed() -> void:
+	save_map_requested.emit()
+
+func _on_load_pressed() -> void:
+	load_map_requested.emit()
