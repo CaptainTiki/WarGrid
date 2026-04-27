@@ -11,6 +11,7 @@ var camera: Camera3D
 var brush_preview: BrushPreview
 var height_brush_tool := HeightBrushTool.new()
 var smooth_brush_tool := SmoothBrushTool.new()
+var flatten_brush_tool := FlattenBrushTool.new()
 var _last_pick_point: Variant = null
 var _painting := false
 var _lowering := false
@@ -19,6 +20,7 @@ var _active_tool := EditorToolDock.TOOL_HEIGHT
 func _ready() -> void:
 	add_child(height_brush_tool)
 	add_child(smooth_brush_tool)
+	add_child(flatten_brush_tool)
 	_ensure_light()
 	camera_rig.frame_point(terrain.get_center_position())
 	camera = camera_rig.get_camera()
@@ -79,6 +81,8 @@ func _apply_active_brush(_delta: float) -> void:
 			height_brush_tool.apply_stroke_sample(terrain, _last_pick_point, _lowering)
 		EditorToolDock.TOOL_SMOOTH:
 			smooth_brush_tool.apply_stroke_sample(terrain, _last_pick_point)
+		EditorToolDock.TOOL_FLATTEN:
+			flatten_brush_tool.apply_stroke_sample(terrain, _last_pick_point)
 
 func _begin_brush_stroke(lowering: bool) -> void:
 	if _last_pick_point == null:
@@ -94,13 +98,21 @@ func _begin_brush_stroke(lowering: bool) -> void:
 		EditorToolDock.TOOL_SMOOTH:
 			terrain.begin_smooth_brush_stroke()
 			smooth_brush_tool.begin_stroke(terrain, _last_pick_point)
+		EditorToolDock.TOOL_FLATTEN:
+			flatten_brush_tool.begin_stroke(terrain, _last_pick_point)
 
 func _end_brush_stroke() -> void:
 	if not _painting:
 		return
 
 	_painting = false
-	height_brush_tool.end_stroke(terrain)
+	match _active_tool:
+		EditorToolDock.TOOL_HEIGHT:
+			height_brush_tool.end_stroke(terrain)
+		EditorToolDock.TOOL_SMOOTH:
+			smooth_brush_tool.end_stroke(terrain)
+		EditorToolDock.TOOL_FLATTEN:
+			flatten_brush_tool.end_stroke(terrain)
 
 func _ensure_light() -> void:
 	if has_node("Sun"):
@@ -123,18 +135,21 @@ func _on_brush_strength_changed(strength: float) -> void:
 	var clamped_strength := clampf(strength, 0.1, 16.0)
 	height_brush_tool.brush_data.strength = clamped_strength
 	smooth_brush_tool.brush_data.strength = clamped_strength
+	flatten_brush_tool.brush_data.strength = clamped_strength
 	tool_dock.set_brush_strength(clamped_strength)
 
 func _on_brush_falloff_changed(falloff: float) -> void:
 	var clamped_falloff := clampf(falloff, 0.25, 4.0)
 	height_brush_tool.brush_data.falloff = clamped_falloff
 	smooth_brush_tool.brush_data.falloff = clamped_falloff
+	flatten_brush_tool.brush_data.falloff = clamped_falloff
 	tool_dock.set_brush_falloff(clamped_falloff)
 
 func _set_brush_radius(radius: float) -> void:
 	var clamped_radius := clampf(radius, 1.0, 32.0)
 	height_brush_tool.brush_data.radius = clamped_radius
 	smooth_brush_tool.brush_data.radius = clamped_radius
+	flatten_brush_tool.brush_data.radius = clamped_radius
 	brush_preview.set_radius(clamped_radius)
 	tool_dock.set_brush_radius(clamped_radius)
 
@@ -144,5 +159,7 @@ func _get_active_brush_data() -> TerrainBrushData:
 			return height_brush_tool.brush_data
 		EditorToolDock.TOOL_SMOOTH:
 			return smooth_brush_tool.brush_data
+		EditorToolDock.TOOL_FLATTEN:
+			return flatten_brush_tool.brush_data
 		_:
 			return height_brush_tool.brush_data
