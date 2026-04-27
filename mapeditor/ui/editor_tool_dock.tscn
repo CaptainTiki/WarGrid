@@ -157,6 +157,27 @@ max_value = 4.0
 step = 0.05
 value = 1.0
 
+[node name="MaterialPropertiesPanel" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=100047113]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBoxContainer/MaterialPropertiesPanel" unique_id=899142110]
+layout_mode = 2
+
+[node name="HeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/MaterialPropertiesPanel" unique_id=122364204]
+layout_mode = 2
+text = "Material Properties"
+
+[node name="ChannelLabel" type="Label" parent="MarginContainer/VBoxContainer/MaterialPropertiesPanel" unique_id=32664689]
+layout_mode = 2
+text = "Selected Material"
+
+[node name="MaterialChannelOption" type="OptionButton" parent="MarginContainer/VBoxContainer/MaterialPropertiesPanel" unique_id=621593747]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="Spacer" type="Control" parent="MarginContainer/VBoxContainer" unique_id=751107816]
 layout_mode = 2
 size_flags_vertical = 3

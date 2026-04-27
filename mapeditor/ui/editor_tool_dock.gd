@@ -5,6 +5,7 @@ signal tool_selected(tool_id: int)
 signal brush_radius_changed(radius: float)
 signal brush_strength_changed(strength: float)
 signal brush_falloff_changed(falloff: float)
+signal material_channel_changed(channel: int)
 signal save_map_requested
 signal load_map_requested
 
@@ -28,6 +29,8 @@ const TOOL_BUILDABLE_PAINT := 5
 @onready var strength_value_label: Label = %StrengthValueLabel
 @onready var falloff_slider: HSlider = %FalloffSlider
 @onready var falloff_value_label: Label = %FalloffValueLabel
+@onready var material_properties_panel: VBoxContainer = %MaterialPropertiesPanel
+@onready var material_channel_option: OptionButton = %MaterialChannelOption
 @onready var save_button: Button = %SaveButton
 @onready var load_button: Button = %LoadButton
 
@@ -44,8 +47,10 @@ func _ready() -> void:
 	radius_slider.value_changed.connect(_on_radius_slider_changed)
 	strength_slider.value_changed.connect(_on_strength_slider_changed)
 	falloff_slider.value_changed.connect(_on_falloff_slider_changed)
+	material_channel_option.item_selected.connect(_on_material_channel_selected)
 	save_button.pressed.connect(_on_save_pressed)
 	load_button.pressed.connect(_on_load_pressed)
+	_configure_material_channel_option()
 	set_active_tool(_active_tool)
 	set_brush_radius(radius_slider.value)
 	set_brush_strength(strength_slider.value)
@@ -75,6 +80,12 @@ func set_active_tool(tool_id: int) -> void:
 			tool_name_label.text = "Walkable Paint"
 		TOOL_BUILDABLE_PAINT:
 			tool_name_label.text = "Buildable Paint"
+	material_properties_panel.visible = tool_id == TOOL_PAINT_MATERIAL
+
+func set_material_channel(channel: int) -> void:
+	_syncing = true
+	material_channel_option.select(clampi(channel, 0, 3))
+	_syncing = false
 
 func set_brush_radius(radius: float) -> void:
 	_syncing = true
@@ -141,6 +152,18 @@ func _update_strength_label(strength: float) -> void:
 
 func _update_falloff_label(falloff: float) -> void:
 	falloff_value_label.text = "%.2f" % falloff
+
+func _configure_material_channel_option() -> void:
+	material_channel_option.clear()
+	material_channel_option.add_item("Material 0 - Grass", 0)
+	material_channel_option.add_item("Material 1 - Dirt", 1)
+	material_channel_option.add_item("Material 2 - Rock", 2)
+	material_channel_option.add_item("Material 3 - Sand", 3)
+	material_channel_option.select(0)
+
+func _on_material_channel_selected(index: int) -> void:
+	if not _syncing:
+		material_channel_changed.emit(material_channel_option.get_item_id(index))
 
 func _on_save_pressed() -> void:
 	save_map_requested.emit()

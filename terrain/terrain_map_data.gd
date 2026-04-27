@@ -2,6 +2,7 @@ extends Resource
 class_name TerrainMapData
 
 const GRASS_MATERIAL_ID := 0
+const SPLAT_CHANNEL_COUNT := 4
 
 @export var playable_chunks := Vector2i(2, 2)
 @export var chunk_size_meters := 32
@@ -11,6 +12,7 @@ const GRASS_MATERIAL_ID := 0
 
 var base_heights := PackedFloat32Array()
 var material_ids := PackedInt32Array()
+var splat_map: Image
 var _total_cell_count := Vector2i.ZERO
 var _vertex_count := Vector2i.ZERO
 
@@ -32,6 +34,8 @@ func create_flat_grass_map(
 	for i in material_ids.size():
 		material_ids[i] = GRASS_MATERIAL_ID
 
+	_create_default_splat_map()
+
 func get_cells_per_chunk() -> int:
 	return int(round(float(chunk_size_meters) / cell_size))
 
@@ -52,6 +56,11 @@ func get_vertex_count() -> Vector2i:
 func get_total_size() -> Vector2:
 	var cells := get_total_cell_count()
 	return Vector2(float(cells.x) * cell_size, float(cells.y) * cell_size)
+
+func get_splat_map_size() -> Vector2i:
+	if splat_map == null:
+		return Vector2i.ZERO
+	return Vector2i(splat_map.get_width(), splat_map.get_height())
 
 func get_border_size() -> float:
 	return float(border_chunks * chunk_size_meters)
@@ -283,6 +292,52 @@ func apply_flatten_brush(local_center: Vector3, radius: float, strength: float, 
 	)
 	return dirty_chunks
 
+func apply_material_paint_brush(local_center: Vector3, radius: float, strength: float, falloff_power: float, selected_channel: int) -> Array[Vector2i]:
+	if splat_map == null:
+		_create_default_splat_map()
+
+	var dirty_chunks: Array[Vector2i] = []
+	var dirty_lookup := {}
+	var radius_cells := int(ceil(radius / cell_size))
+	var center_pixel := local_to_splat_pixel(local_center)
+	var radius_squared := radius * radius
+	var channel := clampi(selected_channel, 0, SPLAT_CHANNEL_COUNT - 1)
+	var paint_strength := clampf(strength, 0.0, 1.0)
+	var image_size := get_splat_map_size()
+
+	for z in range(center_pixel.y - radius_cells, center_pixel.y + radius_cells + 1):
+		if z < 0 or z >= image_size.y:
+			continue
+		for x in range(center_pixel.x - radius_cells, center_pixel.x + radius_cells + 1):
+			if x < 0 or x >= image_size.x:
+				continue
+
+			var point_x := (float(x) + 0.5) * cell_size
+			var point_z := (float(z) + 0.5) * cell_size
+			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
+			if distance_squared > radius_squared:
+				continue
+
+			var normalized_falloff : float = 1.0 - sqrt(distance_squared) / max(radius, 0.001)
+			var shaped_falloff := pow(smoothstep(0.0, 1.0, normalized_falloff), falloff_power)
+			var blend_amount := clampf(paint_strength * shaped_falloff, 0.0, 1.0)
+			var weights := _color_to_weights(splat_map.get_pixel(x, z))
+			for i in weights.size():
+				weights[i] = lerpf(weights[i], 1.0 if i == channel else 0.0, blend_amount)
+			_normalize_weights(weights)
+			splat_map.set_pixel(x, z, Color(weights[0], weights[1], weights[2], weights[3]))
+
+			_add_dirty_chunks_for_grid(Vector2i(x, z), dirty_chunks, dirty_lookup)
+
+	return dirty_chunks
+
+func local_to_splat_pixel(local_position: Vector3) -> Vector2i:
+	var size := get_splat_map_size()
+	return Vector2i(
+		clampi(int(floor(local_position.x / cell_size)), 0, max(size.x - 1, 0)),
+		clampi(int(floor(local_position.z / cell_size)), 0, max(size.y - 1, 0))
+	)
+
 func get_chunks_using_grid_point(grid: Vector2i) -> Array[Vector2i]:
 	var chunk_coords: Array[Vector2i] = []
 	var cells_per_chunk := get_cells_per_chunk()
@@ -307,6 +362,28 @@ func _refresh_cached_sizes() -> void:
 	var cells_per_chunk := get_cells_per_chunk()
 	_total_cell_count = get_total_chunks() * cells_per_chunk
 	_vertex_count = _total_cell_count + Vector2i.ONE
+
+func _create_default_splat_map() -> void:
+	var size := get_total_cell_count()
+	splat_map = Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
+	splat_map.fill(Color(1.0, 0.0, 0.0, 0.0))
+
+func _color_to_weights(color: Color) -> Array[float]:
+	return [color.r, color.g, color.b, color.a]
+
+func _normalize_weights(weights: Array[float]) -> void:
+	var total := 0.0
+	for i in weights.size():
+		weights[i] = maxf(weights[i], 0.0)
+		total += weights[i]
+	if total <= 0.0001:
+		weights[0] = 1.0
+		weights[1] = 0.0
+		weights[2] = 0.0
+		weights[3] = 0.0
+		return
+	for i in weights.size():
+		weights[i] /= total
 
 func _add_dirty_chunks_for_grid(grid: Vector2i, dirty_chunks: Array[Vector2i], dirty_lookup: Dictionary) -> void:
 	for chunk_coord in get_chunks_using_grid_point(grid):

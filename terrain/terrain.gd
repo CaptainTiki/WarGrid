@@ -2,12 +2,17 @@ extends Node3D
 class_name Terrain
 
 const TerrainChunkScene := preload("res://terrain/terrain_chunk.tscn")
+const Material0Albedo := preload("res://assets/textures/terrain/grass.png")
+const Material1Albedo := preload("res://assets/textures/terrain/dirt.png")
+const Material2Albedo := preload("res://assets/textures/terrain/rock.png")
+const Material3Albedo := preload("res://assets/textures/terrain/sand.png")
 
 @export var playable_chunks := Vector2i(2, 2)
 @export var chunk_size_meters := 32
 @export var border_chunks := 2
 @export var cell_size := 1.0
 @export var debug_plain_gray := false
+@export var material_texture_scale := 8.0
 @export_range(1, 4, 1) var mesh_chunks_per_frame := 2
 @export var rebuild_pretty_normals_during_stroke := true
 @export_range(1, 4, 1) var collider_chunks_per_tick := 1
@@ -19,7 +24,9 @@ var chunks := {}
 
 var _chunk_root: Node3D
 var _bounds_root: Node3D
-var _terrain_material: StandardMaterial3D
+var _terrain_material: ShaderMaterial
+var _terrain_shader_material: ShaderMaterial
+var _splat_texture: ImageTexture
 var _mesh_rebuild_queue: Array[Vector2i] = []
 var _collider_rebuild_queue: Array[Vector2i] = []
 var _pretty_mesh_rebuild_lookup := {}
@@ -30,6 +37,7 @@ var _collider_rebuild_elapsed := 0.0
 var _height_brush_stroke_active := false
 var _smooth_brush_stroke_active := false
 var _flatten_brush_stroke_active := false
+var _material_paint_brush_stroke_active := false
 var _flatten_target_height := 0.0
 
 func _ready() -> void:
@@ -55,6 +63,11 @@ func create_flat_grass_map() -> void:
 	_clear_rebuild_queues()
 	_build_all_chunks()
 	_rebuild_bounds()
+
+func create_flat_grass_map_with_size(new_playable_chunks: Vector2i, new_border_chunks: int = border_chunks) -> void:
+	playable_chunks = Vector2i(maxi(new_playable_chunks.x, 1), maxi(new_playable_chunks.y, 1))
+	border_chunks = maxi(new_border_chunks, 0)
+	create_flat_grass_map()
 
 func apply_height_brush(local_center: Vector3, radius: float, amount: float, falloff_power: float = 1.0) -> void:
 	if map_data == null:
@@ -105,6 +118,21 @@ func finish_flatten_brush_stroke() -> void:
 	_stroke_dirty_lookup.clear()
 	_drain_mesh_rebuild_queue(mesh_chunks_per_frame)
 
+func apply_material_paint_brush(local_center: Vector3, radius: float, strength: float, falloff_power: float, selected_channel: int) -> void:
+	if map_data == null:
+		return
+
+	var touched_chunks := map_data.apply_material_paint_brush(local_center, radius, strength, falloff_power, selected_channel)
+	queue_splat_dirty_chunks(touched_chunks)
+
+func begin_material_paint_brush_stroke() -> void:
+	_material_paint_brush_stroke_active = true
+
+func finish_material_paint_brush_stroke() -> void:
+	_material_paint_brush_stroke_active = false
+	_update_splat_texture()
+	_stroke_dirty_lookup.clear()
+
 func queue_dirty_chunks(chunk_coords: Array[Vector2i], pretty_normals: bool = false) -> void:
 	for chunk_coord in chunk_coords:
 		if not map_data.is_chunk_valid(chunk_coord):
@@ -118,6 +146,17 @@ func queue_dirty_chunks(chunk_coords: Array[Vector2i], pretty_normals: bool = fa
 		var brush_stroke_active := _height_brush_stroke_active or _smooth_brush_stroke_active or _flatten_brush_stroke_active
 		if rebuild_colliders_during_stroke or not brush_stroke_active:
 			_queue_collider_rebuild(chunk_coord)
+
+func queue_splat_dirty_chunks(chunk_coords: Array[Vector2i]) -> void:
+	for chunk_coord in chunk_coords:
+		if not map_data.is_chunk_valid(chunk_coord):
+			continue
+		var key := _chunk_key(chunk_coord)
+		_stroke_dirty_lookup[key] = chunk_coord
+		var chunk := chunks.get(key) as TerrainChunk
+		if chunk != null:
+			chunk.mark_dirty()
+	_update_splat_texture()
 
 func finish_height_brush_stroke() -> void:
 	_height_brush_stroke_active = false
@@ -179,6 +218,8 @@ func save_map(path: String, map_name: String = "Authored Map") -> bool:
 	resource.playable_chunks = map_data.playable_chunks
 	resource.border_chunks = map_data.border_chunks
 	resource.base_heights = map_data.base_heights.duplicate()
+	if map_data.splat_map != null:
+		resource.splat_map = map_data.splat_map.duplicate()
 
 	var error := ResourceSaver.save(resource, path)
 	if error == OK:
@@ -207,6 +248,11 @@ func load_map(path: String) -> bool:
 	new_map_data.material_ids.resize(new_map_data.get_total_cell_count().x * new_map_data.get_total_cell_count().y)
 	for i in new_map_data.material_ids.size():
 		new_map_data.material_ids[i] = TerrainMapData.GRASS_MATERIAL_ID
+	if resource.splat_map != null:
+		new_map_data.splat_map = resource.splat_map.duplicate()
+	else:
+		new_map_data.splat_map = Image.create(new_map_data.get_total_cell_count().x, new_map_data.get_total_cell_count().y, false, Image.FORMAT_RGBA8)
+		new_map_data.splat_map.fill(Color(1.0, 0.0, 0.0, 0.0))
 
 	# Replace and rebuild
 	map_data = new_map_data
@@ -339,14 +385,56 @@ func _clear_rebuild_queues() -> void:
 	_height_brush_stroke_active = false
 	_smooth_brush_stroke_active = false
 	_flatten_brush_stroke_active = false
+	_material_paint_brush_stroke_active = false
 
-func _create_terrain_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.resource_name = "TerrainGrassMaterial"
-	material.albedo_color = Color(0.24, 0.58, 0.18) if not debug_plain_gray else Color(0.55, 0.55, 0.55)
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.roughness = 0.9
+func _create_terrain_material() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.resource_name = "TerrainSplatMaterial"
+	material.shader = _create_terrain_shader()
+	_terrain_shader_material = material
+	_update_splat_texture()
+	material.set_shader_parameter("material_0_albedo", Material0Albedo)
+	material.set_shader_parameter("material_1_albedo", Material1Albedo)
+	material.set_shader_parameter("material_2_albedo", Material2Albedo)
+	material.set_shader_parameter("material_3_albedo", Material3Albedo)
+	material.set_shader_parameter("material_texture_scale", material_texture_scale)
 	return material
+
+func _create_terrain_shader() -> Shader:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+
+uniform sampler2D splat_texture : filter_linear, repeat_disable;
+uniform sampler2D material_0_albedo : source_color, filter_linear, repeat_enable;
+uniform sampler2D material_1_albedo : source_color, filter_linear, repeat_enable;
+uniform sampler2D material_2_albedo : source_color, filter_linear, repeat_enable;
+uniform sampler2D material_3_albedo : source_color, filter_linear, repeat_enable;
+uniform float material_texture_scale = 8.0;
+
+void fragment() {
+	vec4 weights = texture(splat_texture, UV);
+	float total_weight = max(weights.r + weights.g + weights.b + weights.a, 0.0001);
+	weights /= total_weight;
+	vec2 tiled_uv = UV * material_texture_scale;
+	vec3 blended = texture(material_0_albedo, tiled_uv).rgb * weights.r;
+	blended += texture(material_1_albedo, tiled_uv).rgb * weights.g;
+	blended += texture(material_2_albedo, tiled_uv).rgb * weights.b;
+	blended += texture(material_3_albedo, tiled_uv).rgb * weights.a;
+	ALBEDO = blended;
+	ROUGHNESS = 0.9;
+}
+"""
+	return shader
+
+func _update_splat_texture() -> void:
+	if map_data == null or map_data.splat_map == null or _terrain_shader_material == null:
+		return
+	if _splat_texture == null or _splat_texture.get_width() != map_data.splat_map.get_width() or _splat_texture.get_height() != map_data.splat_map.get_height():
+		_splat_texture = ImageTexture.create_from_image(map_data.splat_map)
+	else:
+		_splat_texture.update(map_data.splat_map)
+	_terrain_shader_material.set_shader_parameter("splat_texture", _splat_texture)
 
 func _chunk_key(chunk_coord: Vector2i) -> String:
 	return "%d,%d" % [chunk_coord.x, chunk_coord.y]

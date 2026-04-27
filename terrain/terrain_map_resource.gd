@@ -10,3 +10,6 @@ class_name TerrainMapResource
 
 # Authored terrain height data
 @export var base_heights: PackedFloat32Array
+
+# Authored terrain material blend data
+@export var splat_map: Image
