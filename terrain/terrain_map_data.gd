@@ -4,6 +4,10 @@ class_name TerrainMapData
 const GRASS_MATERIAL_ID := 0
 const SPLAT_CHANNEL_COUNT := 4
 
+enum Walkable { ALL, AIR, NONE }
+enum Buildable { OPEN, BLOCKED }
+enum OverlayMode { NONE, WALKABLE, BUILDABLE, FOW_HEIGHT }
+
 @export var playable_chunks := Vector2i(2, 2)
 @export var chunk_size_meters := 32
 @export var border_chunks := 2
@@ -12,6 +16,9 @@ const SPLAT_CHANNEL_COUNT := 4
 
 var base_heights := PackedFloat32Array()
 var material_ids := PackedInt32Array()
+var walkable_data := PackedByteArray()
+var buildable_data := PackedByteArray()
+var fow_height_data := PackedByteArray()
 var splat_map: Image
 var _total_cell_count := Vector2i.ZERO
 var _vertex_count := Vector2i.ZERO
@@ -35,6 +42,7 @@ func create_flat_grass_map(
 		material_ids[i] = GRASS_MATERIAL_ID
 
 	_create_default_splat_map()
+	_create_default_gameplay_data()
 
 func get_cells_per_chunk() -> int:
 	return int(round(float(chunk_size_meters) / cell_size))
@@ -71,6 +79,42 @@ func get_playable_min() -> Vector2:
 func get_playable_max() -> Vector2:
 	var playable_size := Vector2(float(playable_chunks.x), float(playable_chunks.y)) * float(chunk_size_meters)
 	return get_playable_min() + playable_size
+
+func get_playable_cell_count() -> Vector2i:
+	return playable_chunks * get_cells_per_chunk()
+
+func get_playable_cell_min() -> Vector2i:
+	var border_cells: int = border_chunks * get_cells_per_chunk()
+	return Vector2i(border_cells, border_cells)
+
+func get_playable_cell_max_exclusive() -> Vector2i:
+	return get_playable_cell_min() + get_playable_cell_count()
+
+func is_visual_cell_in_playable_area(visual_cell: Vector2i) -> bool:
+	var min_cell: Vector2i = get_playable_cell_min()
+	var max_cell: Vector2i = get_playable_cell_max_exclusive()
+	return visual_cell.x >= min_cell.x and visual_cell.y >= min_cell.y and visual_cell.x < max_cell.x and visual_cell.y < max_cell.y
+
+func visual_cell_to_playable_cell(visual_cell: Vector2i) -> Vector2i:
+	return visual_cell - get_playable_cell_min()
+
+func get_walkable_value_for_visual_cell(visual_cell: Vector2i) -> int:
+	var index: int = _playable_index_for_visual_cell(visual_cell)
+	if index < 0 or index >= walkable_data.size():
+		return Walkable.NONE
+	return walkable_data[index]
+
+func get_buildable_value_for_visual_cell(visual_cell: Vector2i) -> int:
+	var index: int = _playable_index_for_visual_cell(visual_cell)
+	if index < 0 or index >= buildable_data.size():
+		return Buildable.BLOCKED
+	return buildable_data[index]
+
+func get_fow_height_value_for_visual_cell(visual_cell: Vector2i) -> int:
+	var index: int = _playable_index_for_visual_cell(visual_cell)
+	if index < 0 or index >= fow_height_data.size():
+		return 0
+	return fow_height_data[index]
 
 func is_grid_point_valid(grid: Vector2i) -> bool:
 	var vertices := get_vertex_count()
@@ -331,6 +375,68 @@ func apply_material_paint_brush(local_center: Vector3, radius: float, strength: 
 
 	return dirty_chunks
 
+func apply_walkable_paint_brush(local_center: Vector3, radius: float, walkable_value: int) -> Array[Vector2i]:
+	var dirty_chunks: Array[Vector2i] = []
+	var dirty_lookup := {}
+	var radius_cells := int(ceil(radius / cell_size))
+	var center_cell := local_to_splat_pixel(local_center)
+	var radius_squared := radius * radius
+	var value := clampi(walkable_value, Walkable.ALL, Walkable.NONE)
+	var playable_min: Vector2i = get_playable_cell_min()
+	var playable_max: Vector2i = get_playable_cell_max_exclusive()
+
+	for z in range(center_cell.y - radius_cells, center_cell.y + radius_cells + 1):
+		if z < playable_min.y or z >= playable_max.y:
+			continue
+		for x in range(center_cell.x - radius_cells, center_cell.x + radius_cells + 1):
+			if x < playable_min.x or x >= playable_max.x:
+				continue
+
+			var point_x := (float(x) + 0.5) * cell_size
+			var point_z := (float(z) + 0.5) * cell_size
+			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
+			if distance_squared > radius_squared:
+				continue
+
+			var index: int = _playable_index_for_visual_cell(Vector2i(x, z))
+			if index < 0 or index >= walkable_data.size():
+				continue
+			walkable_data[index] = value
+			_add_dirty_chunks_for_grid(Vector2i(x, z), dirty_chunks, dirty_lookup)
+
+	return dirty_chunks
+
+func apply_buildable_paint_brush(local_center: Vector3, radius: float, buildable_value: int) -> Array[Vector2i]:
+	var dirty_chunks: Array[Vector2i] = []
+	var dirty_lookup := {}
+	var radius_cells := int(ceil(radius / cell_size))
+	var center_cell := local_to_splat_pixel(local_center)
+	var radius_squared := radius * radius
+	var value := clampi(buildable_value, Buildable.OPEN, Buildable.BLOCKED)
+	var playable_min: Vector2i = get_playable_cell_min()
+	var playable_max: Vector2i = get_playable_cell_max_exclusive()
+
+	for z in range(center_cell.y - radius_cells, center_cell.y + radius_cells + 1):
+		if z < playable_min.y or z >= playable_max.y:
+			continue
+		for x in range(center_cell.x - radius_cells, center_cell.x + radius_cells + 1):
+			if x < playable_min.x or x >= playable_max.x:
+				continue
+
+			var point_x := (float(x) + 0.5) * cell_size
+			var point_z := (float(z) + 0.5) * cell_size
+			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
+			if distance_squared > radius_squared:
+				continue
+
+			var index: int = _playable_index_for_visual_cell(Vector2i(x, z))
+			if index < 0 or index >= buildable_data.size():
+				continue
+			buildable_data[index] = value
+			_add_dirty_chunks_for_grid(Vector2i(x, z), dirty_chunks, dirty_lookup)
+
+	return dirty_chunks
+
 func local_to_splat_pixel(local_position: Vector3) -> Vector2i:
 	var size := get_splat_map_size()
 	return Vector2i(
@@ -368,6 +474,17 @@ func _create_default_splat_map() -> void:
 	splat_map = Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
 	splat_map.fill(Color(1.0, 0.0, 0.0, 0.0))
 
+func _create_default_gameplay_data() -> void:
+	var playable_cells: Vector2i = get_playable_cell_count()
+	var cell_count: int = playable_cells.x * playable_cells.y
+	walkable_data.resize(cell_count)
+	buildable_data.resize(cell_count)
+	fow_height_data.resize(cell_count)
+	for i in range(cell_count):
+		walkable_data[i] = Walkable.ALL
+		buildable_data[i] = Buildable.OPEN
+		fow_height_data[i] = 0
+
 func _color_to_weights(color: Color) -> Array[float]:
 	return [color.r, color.g, color.b, color.a]
 
@@ -392,6 +509,13 @@ func _add_dirty_chunks_for_grid(grid: Vector2i, dirty_chunks: Array[Vector2i], d
 			continue
 		dirty_lookup[key] = true
 		dirty_chunks.append(chunk_coord)
+
+func _playable_index_for_visual_cell(visual_cell: Vector2i) -> int:
+	if not is_visual_cell_in_playable_area(visual_cell):
+		return -1
+	var playable_cell: Vector2i = visual_cell_to_playable_cell(visual_cell)
+	var playable_cells: Vector2i = get_playable_cell_count()
+	return playable_cell.y * playable_cells.x + playable_cell.x
 
 func _chunk_key(chunk_coord: Vector2i) -> String:
 	return "%d,%d" % [chunk_coord.x, chunk_coord.y]

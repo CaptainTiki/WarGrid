@@ -13,3 +13,8 @@ class_name TerrainMapResource
 
 # Authored terrain material blend data
 @export var splat_map: Image
+
+# Authored playable-area gameplay data
+@export var walkable_data: PackedByteArray
+@export var buildable_data: PackedByteArray
+@export var fow_height_data: PackedByteArray

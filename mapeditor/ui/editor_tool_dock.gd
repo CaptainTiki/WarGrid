@@ -6,6 +6,10 @@ signal brush_radius_changed(radius: float)
 signal brush_strength_changed(strength: float)
 signal brush_falloff_changed(falloff: float)
 signal material_channel_changed(channel: int)
+signal walkable_value_changed(value: int)
+signal buildable_value_changed(value: int)
+signal overlay_enabled_changed(enabled: bool)
+signal overlay_mode_changed(mode: int)
 signal save_map_requested
 signal load_map_requested
 
@@ -29,8 +33,16 @@ const TOOL_BUILDABLE_PAINT := 5
 @onready var strength_value_label: Label = %StrengthValueLabel
 @onready var falloff_slider: HSlider = %FalloffSlider
 @onready var falloff_value_label: Label = %FalloffValueLabel
+@onready var strength_row: Control = %StrengthRow
+@onready var falloff_row: Control = %FalloffRow
 @onready var material_properties_panel: VBoxContainer = %MaterialPropertiesPanel
 @onready var material_channel_option: OptionButton = %MaterialChannelOption
+@onready var walkable_properties_panel: VBoxContainer = %WalkablePropertiesPanel
+@onready var walkable_value_option: OptionButton = %WalkableValueOption
+@onready var buildable_properties_panel: VBoxContainer = %BuildablePropertiesPanel
+@onready var buildable_value_option: OptionButton = %BuildableValueOption
+@onready var overlay_enabled_check_box: CheckBox = %OverlayEnabledCheckBox
+@onready var overlay_mode_option: OptionButton = %OverlayModeOption
 @onready var save_button: Button = %SaveButton
 @onready var load_button: Button = %LoadButton
 
@@ -48,9 +60,16 @@ func _ready() -> void:
 	strength_slider.value_changed.connect(_on_strength_slider_changed)
 	falloff_slider.value_changed.connect(_on_falloff_slider_changed)
 	material_channel_option.item_selected.connect(_on_material_channel_selected)
+	walkable_value_option.item_selected.connect(_on_walkable_value_selected)
+	buildable_value_option.item_selected.connect(_on_buildable_value_selected)
+	overlay_enabled_check_box.toggled.connect(_on_overlay_enabled_toggled)
+	overlay_mode_option.item_selected.connect(_on_overlay_mode_selected)
 	save_button.pressed.connect(_on_save_pressed)
 	load_button.pressed.connect(_on_load_pressed)
 	_configure_material_channel_option()
+	_configure_walkable_value_option()
+	_configure_buildable_value_option()
+	_configure_overlay_mode_option()
 	set_active_tool(_active_tool)
 	set_brush_radius(radius_slider.value)
 	set_brush_strength(strength_slider.value)
@@ -81,10 +100,33 @@ func set_active_tool(tool_id: int) -> void:
 		TOOL_BUILDABLE_PAINT:
 			tool_name_label.text = "Buildable Paint"
 	material_properties_panel.visible = tool_id == TOOL_PAINT_MATERIAL
+	walkable_properties_panel.visible = tool_id == TOOL_WALKABLE_PAINT
+	buildable_properties_panel.visible = tool_id == TOOL_BUILDABLE_PAINT
+	_set_continuous_brush_controls_enabled(not _is_categorical_paint_tool(tool_id))
 
 func set_material_channel(channel: int) -> void:
 	_syncing = true
 	material_channel_option.select(clampi(channel, 0, 3))
+	_syncing = false
+
+func set_walkable_value(value: int) -> void:
+	_syncing = true
+	walkable_value_option.select(clampi(value, TerrainMapData.Walkable.ALL, TerrainMapData.Walkable.NONE))
+	_syncing = false
+
+func set_buildable_value(value: int) -> void:
+	_syncing = true
+	buildable_value_option.select(clampi(value, TerrainMapData.Buildable.OPEN, TerrainMapData.Buildable.BLOCKED))
+	_syncing = false
+
+func set_overlay_enabled(enabled: bool) -> void:
+	_syncing = true
+	overlay_enabled_check_box.button_pressed = enabled
+	_syncing = false
+
+func set_overlay_mode(mode: int) -> void:
+	_syncing = true
+	overlay_mode_option.select(clampi(mode, 0, 3))
 	_syncing = false
 
 func set_brush_radius(radius: float) -> void:
@@ -164,6 +206,53 @@ func _configure_material_channel_option() -> void:
 func _on_material_channel_selected(index: int) -> void:
 	if not _syncing:
 		material_channel_changed.emit(material_channel_option.get_item_id(index))
+
+func _configure_walkable_value_option() -> void:
+	walkable_value_option.clear()
+	walkable_value_option.add_item("All", TerrainMapData.Walkable.ALL)
+	walkable_value_option.add_item("Air", TerrainMapData.Walkable.AIR)
+	walkable_value_option.add_item("None", TerrainMapData.Walkable.NONE)
+	walkable_value_option.select(0)
+
+func _on_walkable_value_selected(index: int) -> void:
+	if not _syncing:
+		walkable_value_changed.emit(walkable_value_option.get_item_id(index))
+
+func _configure_buildable_value_option() -> void:
+	buildable_value_option.clear()
+	buildable_value_option.add_item("Open", TerrainMapData.Buildable.OPEN)
+	buildable_value_option.add_item("Blocked", TerrainMapData.Buildable.BLOCKED)
+	buildable_value_option.select(0)
+
+func _on_buildable_value_selected(index: int) -> void:
+	if not _syncing:
+		buildable_value_changed.emit(buildable_value_option.get_item_id(index))
+
+func _configure_overlay_mode_option() -> void:
+	overlay_mode_option.clear()
+	overlay_mode_option.add_item("None", TerrainMapData.OverlayMode.NONE)
+	overlay_mode_option.add_item("Walkable", TerrainMapData.OverlayMode.WALKABLE)
+	overlay_mode_option.add_item("Buildable", TerrainMapData.OverlayMode.BUILDABLE)
+	overlay_mode_option.add_item("FOW Height", TerrainMapData.OverlayMode.FOW_HEIGHT)
+	overlay_mode_option.select(0)
+
+func _on_overlay_enabled_toggled(enabled: bool) -> void:
+	if not _syncing:
+		overlay_enabled_changed.emit(enabled)
+
+func _on_overlay_mode_selected(index: int) -> void:
+	if not _syncing:
+		overlay_mode_changed.emit(overlay_mode_option.get_item_id(index))
+
+func _set_continuous_brush_controls_enabled(enabled: bool) -> void:
+	strength_slider.editable = enabled
+	falloff_slider.editable = enabled
+	var row_color := Color.WHITE if enabled else Color(0.55, 0.55, 0.55, 1.0)
+	strength_row.modulate = row_color
+	falloff_row.modulate = row_color
+
+func _is_categorical_paint_tool(tool_id: int) -> bool:
+	return tool_id == TOOL_WALKABLE_PAINT or tool_id == TOOL_BUILDABLE_PAINT
 
 func _on_save_pressed() -> void:
 	save_map_requested.emit()

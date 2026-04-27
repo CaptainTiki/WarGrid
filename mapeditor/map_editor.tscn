@@ -1,28 +1,27 @@
-[gd_scene load_steps=6 format=3 uid="uid://cxvik22bgj68c"]
+[gd_scene format=3 uid="uid://cxvik22bgj68c"]
 
 [ext_resource type="Script" uid="uid://c4nptwishxfly" path="res://mapeditor/map_editor.gd" id="1_qvbsr"]
 [ext_resource type="Script" uid="uid://cmxlihyhms710" path="res://terrain/terrain.gd" id="2_w3mjr"]
 [ext_resource type="PackedScene" uid="uid://bc7gi27evtm53" path="res://system/camera/editor_camera_rig.tscn" id="3_pyp1c"]
 [ext_resource type="PackedScene" uid="uid://cenjxo26wplj1" path="res://mapeditor/ui/editor_tool_dock.tscn" id="4_x14j0"]
-[ext_resource type="PackedScene" path="res://mapeditor/ui/editor_menu_bar.tscn" id="5_3fgqi"]
+[ext_resource type="PackedScene" uid="uid://dk5khjpy33l6a" path="res://mapeditor/ui/editor_menu_bar.tscn" id="5_3fgqi"]
 
 [node name="MapEditor" type="Node3D" unique_id=1896567692]
 script = ExtResource("1_qvbsr")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1933503567]
 
-[node name="EditorMenuBar" parent="CanvasLayer" instance=ExtResource("5_3fgqi")]
+[node name="EditorMenuBar" parent="CanvasLayer" unique_id=521268037 instance=ExtResource("5_3fgqi")]
 
 [node name="EditorToolDock" parent="CanvasLayer" unique_id=740897651 instance=ExtResource("4_x14j0")]
-anchors_preset = 11
 offset_top = 32.0
 
-[node name="OverwriteMapDialog" type="ConfirmationDialog" parent="CanvasLayer"]
+[node name="OverwriteMapDialog" type="ConfirmationDialog" parent="CanvasLayer" unique_id=2103212805]
 title = "Overwrite Current Map?"
 ok_button_text = "Create / Reset Map"
 dialog_text = "Creating a new map will replace the current unsaved map."
 
-[node name="PreferencesDialog" type="AcceptDialog" parent="CanvasLayer"]
+[node name="PreferencesDialog" type="AcceptDialog" parent="CanvasLayer" unique_id=129827181]
 title = "Preferences"
 dialog_text = "Preferences will be added in a later pass."
 

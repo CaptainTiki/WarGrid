@@ -106,6 +106,7 @@ step = 0.5
 value = 6.0
 
 [node name="StrengthRow" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1667780099]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 4
 
@@ -132,6 +133,7 @@ step = 0.1
 value = 4.0
 
 [node name="FalloffRow" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1337848362]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 4
 
@@ -175,6 +177,68 @@ layout_mode = 2
 text = "Selected Material"
 
 [node name="MaterialChannelOption" type="OptionButton" parent="MarginContainer/VBoxContainer/MaterialPropertiesPanel" unique_id=621593747]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="WalkablePropertiesPanel" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=457111657]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBoxContainer/WalkablePropertiesPanel" unique_id=606531803]
+layout_mode = 2
+
+[node name="HeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/WalkablePropertiesPanel" unique_id=31226837]
+layout_mode = 2
+text = "Walkable Paint"
+
+[node name="ValueLabel" type="Label" parent="MarginContainer/VBoxContainer/WalkablePropertiesPanel" unique_id=281772126]
+layout_mode = 2
+text = "Walkable Type"
+
+[node name="WalkableValueOption" type="OptionButton" parent="MarginContainer/VBoxContainer/WalkablePropertiesPanel" unique_id=785887929]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BuildablePropertiesPanel" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=307239460]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBoxContainer/BuildablePropertiesPanel" unique_id=600724901]
+layout_mode = 2
+
+[node name="HeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/BuildablePropertiesPanel" unique_id=498553407]
+layout_mode = 2
+text = "Buildable Paint"
+
+[node name="ValueLabel" type="Label" parent="MarginContainer/VBoxContainer/BuildablePropertiesPanel" unique_id=776983195]
+layout_mode = 2
+text = "Buildable Type"
+
+[node name="BuildableValueOption" type="OptionButton" parent="MarginContainer/VBoxContainer/BuildablePropertiesPanel" unique_id=521122738]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="OverlayPanel" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=319439652]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBoxContainer/OverlayPanel" unique_id=375592215]
+layout_mode = 2
+
+[node name="HeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/OverlayPanel" unique_id=425140539]
+layout_mode = 2
+text = "Gameplay Overlay"
+
+[node name="OverlayEnabledCheckBox" type="CheckBox" parent="MarginContainer/VBoxContainer/OverlayPanel" unique_id=1108108344]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Show Overlay"
+
+[node name="OverlayModeOption" type="OptionButton" parent="MarginContainer/VBoxContainer/OverlayPanel" unique_id=293783379]
 unique_name_in_owner = true
 layout_mode = 2
 

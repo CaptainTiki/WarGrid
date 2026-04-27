@@ -3,6 +3,8 @@ class_name MapEditor
 
 const BrushPreviewScene := preload("res://mapeditor/brushes/brush_preview.tscn")
 const MaterialPaintBrushToolScript := preload("res://mapeditor/tools/material_paint_brush_tool.gd")
+const WalkablePaintBrushToolScript := preload("res://mapeditor/tools/walkable_paint_brush_tool.gd")
+const BuildablePaintBrushToolScript := preload("res://mapeditor/tools/buildable_paint_brush_tool.gd")
 const MAX_PLAYABLE_CHUNKS := 512
 
 @onready var terrain: Terrain = $Terrain
@@ -18,6 +20,8 @@ var height_brush_tool := HeightBrushTool.new()
 var smooth_brush_tool := SmoothBrushTool.new()
 var flatten_brush_tool := FlattenBrushTool.new()
 var material_paint_brush_tool := MaterialPaintBrushToolScript.new()
+var walkable_paint_brush_tool := WalkablePaintBrushToolScript.new()
+var buildable_paint_brush_tool := BuildablePaintBrushToolScript.new()
 var _last_pick_point: Variant = null
 var _painting := false
 var _lowering := false
@@ -30,6 +34,8 @@ func _ready() -> void:
 	add_child(smooth_brush_tool)
 	add_child(flatten_brush_tool)
 	add_child(material_paint_brush_tool)
+	add_child(walkable_paint_brush_tool)
+	add_child(buildable_paint_brush_tool)
 	_ensure_light()
 	camera_rig.frame_point(terrain.get_center_position())
 	camera = camera_rig.get_camera()
@@ -45,6 +51,10 @@ func _ready() -> void:
 	tool_dock.brush_strength_changed.connect(_on_brush_strength_changed)
 	tool_dock.brush_falloff_changed.connect(_on_brush_falloff_changed)
 	tool_dock.material_channel_changed.connect(_on_material_channel_changed)
+	tool_dock.walkable_value_changed.connect(_on_walkable_value_changed)
+	tool_dock.buildable_value_changed.connect(_on_buildable_value_changed)
+	tool_dock.overlay_enabled_changed.connect(_on_overlay_enabled_changed)
+	tool_dock.overlay_mode_changed.connect(_on_overlay_mode_changed)
 	tool_dock.save_map_requested.connect(_on_save_map)
 	tool_dock.load_map_requested.connect(_on_load_map)
 	tool_dock.set_active_tool(_active_tool)
@@ -52,6 +62,10 @@ func _ready() -> void:
 	tool_dock.set_brush_strength(height_brush_tool.brush_data.strength)
 	tool_dock.set_brush_falloff(height_brush_tool.brush_data.falloff)
 	tool_dock.set_material_channel(material_paint_brush_tool.selected_material_channel)
+	tool_dock.set_walkable_value(walkable_paint_brush_tool.selected_walkable_value)
+	tool_dock.set_buildable_value(buildable_paint_brush_tool.selected_buildable_value)
+	tool_dock.set_overlay_enabled(false)
+	tool_dock.set_overlay_mode(TerrainMapData.OverlayMode.NONE)
 	brush_preview = BrushPreviewScene.instantiate() as BrushPreview
 	terrain.add_child(brush_preview)
 	brush_preview.hide_preview()
@@ -115,6 +129,10 @@ func _apply_active_brush(_delta: float) -> void:
 			flatten_brush_tool.apply_stroke_sample(terrain, _last_pick_point)
 		EditorToolDock.TOOL_PAINT_MATERIAL:
 			material_paint_brush_tool.apply_stroke_sample(terrain, _last_pick_point)
+		EditorToolDock.TOOL_WALKABLE_PAINT:
+			walkable_paint_brush_tool.apply_stroke_sample(terrain, _last_pick_point)
+		EditorToolDock.TOOL_BUILDABLE_PAINT:
+			buildable_paint_brush_tool.apply_stroke_sample(terrain, _last_pick_point)
 
 func _begin_brush_stroke(lowering: bool) -> void:
 	if _last_pick_point == null:
@@ -135,6 +153,12 @@ func _begin_brush_stroke(lowering: bool) -> void:
 		EditorToolDock.TOOL_PAINT_MATERIAL:
 			terrain.begin_material_paint_brush_stroke()
 			material_paint_brush_tool.begin_stroke(terrain, _last_pick_point)
+		EditorToolDock.TOOL_WALKABLE_PAINT:
+			terrain.begin_walkable_paint_brush_stroke()
+			walkable_paint_brush_tool.begin_stroke(terrain, _last_pick_point)
+		EditorToolDock.TOOL_BUILDABLE_PAINT:
+			terrain.begin_buildable_paint_brush_stroke()
+			buildable_paint_brush_tool.begin_stroke(terrain, _last_pick_point)
 
 func _end_brush_stroke() -> void:
 	if not _painting:
@@ -150,6 +174,10 @@ func _end_brush_stroke() -> void:
 			flatten_brush_tool.end_stroke(terrain)
 		EditorToolDock.TOOL_PAINT_MATERIAL:
 			material_paint_brush_tool.end_stroke(terrain)
+		EditorToolDock.TOOL_WALKABLE_PAINT:
+			walkable_paint_brush_tool.end_stroke(terrain)
+		EditorToolDock.TOOL_BUILDABLE_PAINT:
+			buildable_paint_brush_tool.end_stroke(terrain)
 	_map_dirty = true
 
 func _ensure_light() -> void:
@@ -165,6 +193,16 @@ func _on_tool_selected(tool_id: int) -> void:
 	_end_brush_stroke()
 	_active_tool = tool_id
 	tool_dock.set_active_tool(_active_tool)
+	if _active_tool == EditorToolDock.TOOL_WALKABLE_PAINT:
+		terrain.set_overlay_enabled(true)
+		terrain.set_overlay_mode(TerrainMapData.OverlayMode.WALKABLE)
+		tool_dock.set_overlay_enabled(true)
+		tool_dock.set_overlay_mode(TerrainMapData.OverlayMode.WALKABLE)
+	elif _active_tool == EditorToolDock.TOOL_BUILDABLE_PAINT:
+		terrain.set_overlay_enabled(true)
+		terrain.set_overlay_mode(TerrainMapData.OverlayMode.BUILDABLE)
+		tool_dock.set_overlay_enabled(true)
+		tool_dock.set_overlay_mode(TerrainMapData.OverlayMode.BUILDABLE)
 
 func _on_brush_radius_changed(radius: float) -> void:
 	_set_brush_radius(radius)
@@ -189,12 +227,30 @@ func _on_material_channel_changed(channel: int) -> void:
 	material_paint_brush_tool.selected_material_channel = clampi(channel, 0, 3)
 	tool_dock.set_material_channel(material_paint_brush_tool.selected_material_channel)
 
+func _on_walkable_value_changed(value: int) -> void:
+	walkable_paint_brush_tool.selected_walkable_value = clampi(value, TerrainMapData.Walkable.ALL, TerrainMapData.Walkable.NONE)
+	tool_dock.set_walkable_value(walkable_paint_brush_tool.selected_walkable_value)
+
+func _on_buildable_value_changed(value: int) -> void:
+	buildable_paint_brush_tool.selected_buildable_value = clampi(value, TerrainMapData.Buildable.OPEN, TerrainMapData.Buildable.BLOCKED)
+	tool_dock.set_buildable_value(buildable_paint_brush_tool.selected_buildable_value)
+
+func _on_overlay_enabled_changed(enabled: bool) -> void:
+	terrain.set_overlay_enabled(enabled)
+	tool_dock.set_overlay_enabled(enabled)
+
+func _on_overlay_mode_changed(mode: int) -> void:
+	terrain.set_overlay_mode(mode)
+	tool_dock.set_overlay_mode(mode)
+
 func _set_brush_radius(radius: float) -> void:
 	var clamped_radius := clampf(radius, 1.0, 32.0)
 	height_brush_tool.brush_data.radius = clamped_radius
 	smooth_brush_tool.brush_data.radius = clamped_radius
 	flatten_brush_tool.brush_data.radius = clamped_radius
 	material_paint_brush_tool.brush_data.radius = clamped_radius
+	walkable_paint_brush_tool.brush_data.radius = clamped_radius
+	buildable_paint_brush_tool.brush_data.radius = clamped_radius
 	brush_preview.set_radius(clamped_radius)
 	tool_dock.set_brush_radius(clamped_radius)
 
@@ -208,6 +264,10 @@ func _get_active_brush_data() -> TerrainBrushData:
 			return flatten_brush_tool.brush_data
 		EditorToolDock.TOOL_PAINT_MATERIAL:
 			return material_paint_brush_tool.brush_data
+		EditorToolDock.TOOL_WALKABLE_PAINT:
+			return walkable_paint_brush_tool.brush_data
+		EditorToolDock.TOOL_BUILDABLE_PAINT:
+			return buildable_paint_brush_tool.brush_data
 		_:
 			return height_brush_tool.brush_data
 

@@ -13,6 +13,7 @@ const Material3Albedo := preload("res://assets/textures/terrain/sand.png")
 @export var cell_size := 1.0
 @export var debug_plain_gray := false
 @export var material_texture_scale := 8.0
+@export var overlay_normal_offset := 0.01
 @export_range(1, 4, 1) var mesh_chunks_per_frame := 2
 @export var rebuild_pretty_normals_during_stroke := true
 @export_range(1, 4, 1) var collider_chunks_per_tick := 1
@@ -25,8 +26,11 @@ var chunks := {}
 var _chunk_root: Node3D
 var _bounds_root: Node3D
 var _terrain_material: ShaderMaterial
+var _overlay_material: StandardMaterial3D
 var _terrain_shader_material: ShaderMaterial
 var _splat_texture: ImageTexture
+var _overlay_enabled := false
+var _overlay_mode := TerrainMapData.OverlayMode.NONE
 var _mesh_rebuild_queue: Array[Vector2i] = []
 var _collider_rebuild_queue: Array[Vector2i] = []
 var _pretty_mesh_rebuild_lookup := {}
@@ -38,6 +42,8 @@ var _height_brush_stroke_active := false
 var _smooth_brush_stroke_active := false
 var _flatten_brush_stroke_active := false
 var _material_paint_brush_stroke_active := false
+var _walkable_paint_brush_stroke_active := false
+var _buildable_paint_brush_stroke_active := false
 var _flatten_target_height := 0.0
 
 func _ready() -> void:
@@ -95,6 +101,7 @@ func finish_smooth_brush_stroke() -> void:
 		var chunk_coord: Vector2i = value
 		_queue_mesh_rebuild(chunk_coord, true)
 		_queue_collider_rebuild(chunk_coord)
+		_rebuild_chunk_overlay(chunk_coord)
 	_stroke_dirty_lookup.clear()
 	_drain_mesh_rebuild_queue(mesh_chunks_per_frame)
 
@@ -115,6 +122,7 @@ func finish_flatten_brush_stroke() -> void:
 		var chunk_coord: Vector2i = value
 		_queue_mesh_rebuild(chunk_coord, true)
 		_queue_collider_rebuild(chunk_coord)
+		_rebuild_chunk_overlay(chunk_coord)
 	_stroke_dirty_lookup.clear()
 	_drain_mesh_rebuild_queue(mesh_chunks_per_frame)
 
@@ -131,6 +139,34 @@ func begin_material_paint_brush_stroke() -> void:
 func finish_material_paint_brush_stroke() -> void:
 	_material_paint_brush_stroke_active = false
 	_update_splat_texture()
+	_stroke_dirty_lookup.clear()
+
+func apply_walkable_paint_brush(local_center: Vector3, radius: float, walkable_value: int) -> void:
+	if map_data == null:
+		return
+
+	var touched_chunks := map_data.apply_walkable_paint_brush(local_center, radius, walkable_value)
+	queue_gameplay_dirty_chunks(touched_chunks, TerrainMapData.OverlayMode.WALKABLE)
+
+func begin_walkable_paint_brush_stroke() -> void:
+	_walkable_paint_brush_stroke_active = true
+
+func finish_walkable_paint_brush_stroke() -> void:
+	_walkable_paint_brush_stroke_active = false
+	_stroke_dirty_lookup.clear()
+
+func apply_buildable_paint_brush(local_center: Vector3, radius: float, buildable_value: int) -> void:
+	if map_data == null:
+		return
+
+	var touched_chunks := map_data.apply_buildable_paint_brush(local_center, radius, buildable_value)
+	queue_gameplay_dirty_chunks(touched_chunks, TerrainMapData.OverlayMode.BUILDABLE)
+
+func begin_buildable_paint_brush_stroke() -> void:
+	_buildable_paint_brush_stroke_active = true
+
+func finish_buildable_paint_brush_stroke() -> void:
+	_buildable_paint_brush_stroke_active = false
 	_stroke_dirty_lookup.clear()
 
 func queue_dirty_chunks(chunk_coords: Array[Vector2i], pretty_normals: bool = false) -> void:
@@ -158,14 +194,36 @@ func queue_splat_dirty_chunks(chunk_coords: Array[Vector2i]) -> void:
 			chunk.mark_dirty()
 	_update_splat_texture()
 
+func queue_gameplay_dirty_chunks(chunk_coords: Array[Vector2i], changed_overlay_mode: int) -> void:
+	for chunk_coord in chunk_coords:
+		if not map_data.is_chunk_valid(chunk_coord):
+			continue
+		var key := _chunk_key(chunk_coord)
+		_stroke_dirty_lookup[key] = chunk_coord
+		var chunk := chunks.get(key) as TerrainChunk
+		if chunk != null:
+			chunk.mark_dirty()
+		if _overlay_enabled and _overlay_mode == changed_overlay_mode:
+			_rebuild_chunk_overlay(chunk_coord)
+
 func finish_height_brush_stroke() -> void:
 	_height_brush_stroke_active = false
 	for value in _stroke_dirty_lookup.values():
 		var chunk_coord: Vector2i = value
 		_queue_mesh_rebuild(chunk_coord, true)
 		_queue_collider_rebuild(chunk_coord)
+		_rebuild_chunk_overlay(chunk_coord)
 	_stroke_dirty_lookup.clear()
 	_drain_mesh_rebuild_queue(mesh_chunks_per_frame)
+
+func set_overlay_enabled(enabled: bool) -> void:
+	_overlay_enabled = enabled
+	_apply_overlay_state_to_chunks()
+
+func set_overlay_mode(mode: int) -> void:
+	_overlay_mode = clampi(mode, TerrainMapData.OverlayMode.NONE, TerrainMapData.OverlayMode.FOW_HEIGHT)
+	_apply_overlay_state_to_chunks()
+	_rebuild_all_overlays()
 
 func flush_rebuild_queues() -> void:
 	while not _mesh_rebuild_queue.is_empty():
@@ -220,6 +278,9 @@ func save_map(path: String, map_name: String = "Authored Map") -> bool:
 	resource.base_heights = map_data.base_heights.duplicate()
 	if map_data.splat_map != null:
 		resource.splat_map = map_data.splat_map.duplicate()
+	resource.walkable_data = map_data.walkable_data.duplicate()
+	resource.buildable_data = map_data.buildable_data.duplicate()
+	resource.fow_height_data = map_data.fow_height_data.duplicate()
 
 	var error := ResourceSaver.save(resource, path)
 	if error == OK:
@@ -253,6 +314,7 @@ func load_map(path: String) -> bool:
 	else:
 		new_map_data.splat_map = Image.create(new_map_data.get_total_cell_count().x, new_map_data.get_total_cell_count().y, false, Image.FORMAT_RGBA8)
 		new_map_data.splat_map.fill(Color(1.0, 0.0, 0.0, 0.0))
+	_restore_or_default_gameplay_data(new_map_data, resource)
 
 	# Replace and rebuild
 	map_data = new_map_data
@@ -279,12 +341,15 @@ func load_map(path: String) -> bool:
 func _build_all_chunks() -> void:
 	var total_chunks := map_data.get_total_chunks()
 	_terrain_material = _create_terrain_material()
+	_overlay_material = _create_overlay_material()
 	for z in range(total_chunks.y):
 		for x in range(total_chunks.x):
 			var chunk_coord := Vector2i(x, z)
 			var chunk := TerrainChunkScene.instantiate() as TerrainChunk
 			_chunk_root.add_child(chunk)
-			chunk.setup(chunk_coord, map_data, _terrain_material)
+			chunk.setup(chunk_coord, map_data, _terrain_material, _overlay_material)
+			chunk.set_overlay_state(_overlay_enabled, _overlay_mode, overlay_normal_offset)
+			chunk.rebuild_overlay()
 			chunks[_chunk_key(chunk_coord)] = chunk
 
 func _rebuild_bounds() -> void:
@@ -386,6 +451,8 @@ func _clear_rebuild_queues() -> void:
 	_smooth_brush_stroke_active = false
 	_flatten_brush_stroke_active = false
 	_material_paint_brush_stroke_active = false
+	_walkable_paint_brush_stroke_active = false
+	_buildable_paint_brush_stroke_active = false
 
 func _create_terrain_material() -> ShaderMaterial:
 	var material := ShaderMaterial.new()
@@ -435,6 +502,58 @@ func _update_splat_texture() -> void:
 	else:
 		_splat_texture.update(map_data.splat_map)
 	_terrain_shader_material.set_shader_parameter("splat_texture", _splat_texture)
+
+func _create_overlay_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.resource_name = "TerrainGameplayOverlayMaterial"
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.vertex_color_use_as_albedo = true
+	material.albedo_color = Color(1.0, 1.0, 1.0, 1.0)
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.no_depth_test = false
+	return material
+
+func _apply_overlay_state_to_chunks() -> void:
+	for value in chunks.values():
+		var chunk := value as TerrainChunk
+		if chunk != null:
+			chunk.set_overlay_state(_overlay_enabled, _overlay_mode, overlay_normal_offset)
+
+func _rebuild_all_overlays() -> void:
+	for value in chunks.values():
+		var chunk := value as TerrainChunk
+		if chunk != null:
+			chunk.rebuild_overlay()
+
+func _rebuild_chunk_overlay(chunk_coord: Vector2i) -> void:
+	if not _overlay_enabled or _overlay_mode == TerrainMapData.OverlayMode.NONE:
+		return
+	var chunk := chunks.get(_chunk_key(chunk_coord)) as TerrainChunk
+	if chunk != null:
+		chunk.rebuild_overlay()
+
+func _restore_or_default_gameplay_data(new_map_data: TerrainMapData, resource: TerrainMapResource) -> void:
+	var playable_cells: Vector2i = new_map_data.get_playable_cell_count()
+	var cell_count: int = playable_cells.x * playable_cells.y
+	if resource.walkable_data.size() == cell_count:
+		new_map_data.walkable_data = resource.walkable_data.duplicate()
+	else:
+		new_map_data.walkable_data.resize(cell_count)
+		for i in range(cell_count):
+			new_map_data.walkable_data[i] = TerrainMapData.Walkable.ALL
+	if resource.buildable_data.size() == cell_count:
+		new_map_data.buildable_data = resource.buildable_data.duplicate()
+	else:
+		new_map_data.buildable_data.resize(cell_count)
+		for i in range(cell_count):
+			new_map_data.buildable_data[i] = TerrainMapData.Buildable.OPEN
+	if resource.fow_height_data.size() == cell_count:
+		new_map_data.fow_height_data = resource.fow_height_data.duplicate()
+	else:
+		new_map_data.fow_height_data.resize(cell_count)
+		for i in range(cell_count):
+			new_map_data.fow_height_data[i] = 0
 
 func _chunk_key(chunk_coord: Vector2i) -> String:
 	return "%d,%d" % [chunk_coord.x, chunk_coord.y]
