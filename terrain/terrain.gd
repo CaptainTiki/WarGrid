@@ -28,6 +28,7 @@ var _collider_rebuild_lookup := {}
 var _stroke_dirty_lookup := {}
 var _collider_rebuild_elapsed := 0.0
 var _height_brush_stroke_active := false
+var _smooth_brush_stroke_active := false
 
 func _ready() -> void:
 	create_flat_grass_map()
@@ -63,6 +64,25 @@ func apply_height_brush(local_center: Vector3, radius: float, amount: float, fal
 func begin_height_brush_stroke() -> void:
 	_height_brush_stroke_active = true
 
+func apply_smooth_brush(local_center: Vector3, radius: float, strength: float, falloff_power: float = 1.0) -> void:
+	if map_data == null:
+		return
+
+	var touched_chunks := map_data.apply_smooth_brush(local_center, radius, strength, falloff_power)
+	queue_dirty_chunks(touched_chunks)
+
+func begin_smooth_brush_stroke() -> void:
+	_smooth_brush_stroke_active = true
+
+func finish_smooth_brush_stroke() -> void:
+	_smooth_brush_stroke_active = false
+	for value in _stroke_dirty_lookup.values():
+		var chunk_coord: Vector2i = value
+		_queue_mesh_rebuild(chunk_coord, true)
+		_queue_collider_rebuild(chunk_coord)
+	_stroke_dirty_lookup.clear()
+	_drain_mesh_rebuild_queue(mesh_chunks_per_frame)
+
 func queue_dirty_chunks(chunk_coords: Array[Vector2i], pretty_normals: bool = false) -> void:
 	for chunk_coord in chunk_coords:
 		if not map_data.is_chunk_valid(chunk_coord):
@@ -73,7 +93,8 @@ func queue_dirty_chunks(chunk_coords: Array[Vector2i], pretty_normals: bool = fa
 		if chunk != null:
 			chunk.mark_dirty()
 		_queue_mesh_rebuild(chunk_coord, pretty_normals or rebuild_pretty_normals_during_stroke)
-		if rebuild_colliders_during_stroke or not _height_brush_stroke_active:
+		var brush_stroke_active := _height_brush_stroke_active or _smooth_brush_stroke_active
+		if rebuild_colliders_during_stroke or not brush_stroke_active:
 			_queue_collider_rebuild(chunk_coord)
 
 func finish_height_brush_stroke() -> void:
@@ -231,6 +252,7 @@ func _clear_rebuild_queues() -> void:
 	_stroke_dirty_lookup.clear()
 	_collider_rebuild_elapsed = 0.0
 	_height_brush_stroke_active = false
+	_smooth_brush_stroke_active = false
 
 func _create_terrain_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()

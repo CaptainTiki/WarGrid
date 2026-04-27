@@ -1,21 +1,19 @@
-[gd_scene load_steps=5 format=3 uid="uid://cxvik22bgj68c"]
+[gd_scene format=3 uid="uid://cxvik22bgj68c"]
 
 [ext_resource type="Script" uid="uid://c4nptwishxfly" path="res://mapeditor/map_editor.gd" id="1_qvbsr"]
 [ext_resource type="Script" uid="uid://cmxlihyhms710" path="res://terrain/terrain.gd" id="2_w3mjr"]
-[ext_resource type="PackedScene" path="res://system/camera/editor_camera_rig.tscn" id="3_pyp1c"]
-[ext_resource type="PackedScene" path="res://mapeditor/ui/editor_tool_dock.tscn" id="4_x14j0"]
+[ext_resource type="PackedScene" uid="uid://bc7gi27evtm53" path="res://system/camera/editor_camera_rig.tscn" id="3_pyp1c"]
+[ext_resource type="PackedScene" uid="uid://cenjxo26wplj1" path="res://mapeditor/ui/editor_tool_dock.tscn" id="4_x14j0"]
 
 [node name="MapEditor" type="Node3D" unique_id=1896567692]
 script = ExtResource("1_qvbsr")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1933503567]
 
-[node name="EditorToolDock" parent="CanvasLayer" instance=ExtResource("4_x14j0")]
+[node name="EditorToolDock" parent="CanvasLayer" unique_id=740897651 instance=ExtResource("4_x14j0")]
+anchors_preset = 11
 
 [node name="Terrain" type="Node3D" parent="." unique_id=1427965974]
 script = ExtResource("2_w3mjr")
-playable_chunks = Vector2i(2, 2)
-chunk_size_meters = 32
-border_chunks = 2
 
-[node name="EditorCameraRig" parent="." instance=ExtResource("3_pyp1c")]
+[node name="EditorCameraRig" parent="." unique_id=17039088 instance=ExtResource("3_pyp1c")]

@@ -10,6 +10,7 @@ const BrushPreviewScene := preload("res://mapeditor/brushes/brush_preview.tscn")
 var camera: Camera3D
 var brush_preview: BrushPreview
 var height_brush_tool := HeightBrushTool.new()
+var smooth_brush_tool := SmoothBrushTool.new()
 var _last_pick_point: Variant = null
 var _painting := false
 var _lowering := false
@@ -17,6 +18,7 @@ var _active_tool := EditorToolDock.TOOL_HEIGHT
 
 func _ready() -> void:
 	add_child(height_brush_tool)
+	add_child(smooth_brush_tool)
 	_ensure_light()
 	camera_rig.frame_point(terrain.get_center_position())
 	camera = camera_rig.get_camera()
@@ -39,10 +41,12 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_set_brush_radius(height_brush_tool.brush_data.radius + 1.0)
+			var current_radius := _get_active_brush_data().radius
+			_set_brush_radius(current_radius + 1.0)
 			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_set_brush_radius(height_brush_tool.brush_data.radius - 1.0)
+			var current_radius := _get_active_brush_data().radius
+			_set_brush_radius(current_radius - 1.0)
 			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			_update_brush()
@@ -59,7 +63,8 @@ func _update_brush() -> void:
 		brush_preview.hide_preview()
 		return
 
-	brush_preview.set_radius(height_brush_tool.brush_data.radius)
+	var active_brush_data := _get_active_brush_data()
+	brush_preview.set_radius(active_brush_data.radius)
 	brush_preview.show_at(_last_pick_point)
 
 func _apply_active_brush(_delta: float) -> void:
@@ -69,18 +74,26 @@ func _apply_active_brush(_delta: float) -> void:
 	if not _painting:
 		return
 
-	height_brush_tool.apply_stroke_sample(terrain, _last_pick_point, _lowering)
+	match _active_tool:
+		EditorToolDock.TOOL_HEIGHT:
+			height_brush_tool.apply_stroke_sample(terrain, _last_pick_point, _lowering)
+		EditorToolDock.TOOL_SMOOTH:
+			smooth_brush_tool.apply_stroke_sample(terrain, _last_pick_point)
 
 func _begin_brush_stroke(lowering: bool) -> void:
 	if _last_pick_point == null:
 		return
-	if _active_tool != EditorToolDock.TOOL_HEIGHT:
-		return
 
 	_painting = true
 	_lowering = lowering
-	terrain.begin_height_brush_stroke()
-	height_brush_tool.begin_stroke(terrain, _last_pick_point, _lowering)
+
+	match _active_tool:
+		EditorToolDock.TOOL_HEIGHT:
+			terrain.begin_height_brush_stroke()
+			height_brush_tool.begin_stroke(terrain, _last_pick_point, _lowering)
+		EditorToolDock.TOOL_SMOOTH:
+			terrain.begin_smooth_brush_stroke()
+			smooth_brush_tool.begin_stroke(terrain, _last_pick_point)
 
 func _end_brush_stroke() -> void:
 	if not _painting:
@@ -107,14 +120,29 @@ func _on_brush_radius_changed(radius: float) -> void:
 	_set_brush_radius(radius)
 
 func _on_brush_strength_changed(strength: float) -> void:
-	height_brush_tool.brush_data.strength = clampf(strength, 0.1, 16.0)
-	tool_dock.set_brush_strength(height_brush_tool.brush_data.strength)
+	var clamped_strength := clampf(strength, 0.1, 16.0)
+	height_brush_tool.brush_data.strength = clamped_strength
+	smooth_brush_tool.brush_data.strength = clamped_strength
+	tool_dock.set_brush_strength(clamped_strength)
 
 func _on_brush_falloff_changed(falloff: float) -> void:
-	height_brush_tool.brush_data.falloff = clampf(falloff, 0.25, 4.0)
-	tool_dock.set_brush_falloff(height_brush_tool.brush_data.falloff)
+	var clamped_falloff := clampf(falloff, 0.25, 4.0)
+	height_brush_tool.brush_data.falloff = clamped_falloff
+	smooth_brush_tool.brush_data.falloff = clamped_falloff
+	tool_dock.set_brush_falloff(clamped_falloff)
 
 func _set_brush_radius(radius: float) -> void:
-	height_brush_tool.brush_data.radius = clampf(radius, 1.0, 32.0)
-	brush_preview.set_radius(height_brush_tool.brush_data.radius)
-	tool_dock.set_brush_radius(height_brush_tool.brush_data.radius)
+	var clamped_radius := clampf(radius, 1.0, 32.0)
+	height_brush_tool.brush_data.radius = clamped_radius
+	smooth_brush_tool.brush_data.radius = clamped_radius
+	brush_preview.set_radius(clamped_radius)
+	tool_dock.set_brush_radius(clamped_radius)
+
+func _get_active_brush_data() -> TerrainBrushData:
+	match _active_tool:
+		EditorToolDock.TOOL_HEIGHT:
+			return height_brush_tool.brush_data
+		EditorToolDock.TOOL_SMOOTH:
+			return smooth_brush_tool.brush_data
+		_:
+			return height_brush_tool.brush_data

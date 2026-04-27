@@ -158,6 +158,78 @@ func apply_height_brush(local_center: Vector3, radius: float, amount: float, fal
 	)
 	return dirty_chunks
 
+func apply_smooth_brush(local_center: Vector3, radius: float, strength: float, falloff_power: float = 1.0) -> Array[Vector2i]:
+	var profile_start := TerrainProfiler.begin()
+	var dirty_chunks: Array[Vector2i] = []
+	var dirty_lookup := {}
+	var radius_cells := int(ceil(radius / cell_size))
+	var center_grid := local_to_grid(local_center)
+	var radius_squared := radius * radius
+	var modified_points := 0
+	var center_x := local_center.x
+	var center_z := local_center.z
+
+	# Store new heights in temporary dict to avoid read/write conflicts
+	var height_updates := {}
+
+	# For each grid point within brush radius
+	for z in range(center_grid.y - radius_cells, center_grid.y + radius_cells + 1):
+		for x in range(center_grid.x - radius_cells, center_grid.x + radius_cells + 1):
+			var grid := Vector2i(x, z)
+			if not is_grid_point_valid(grid):
+				continue
+
+			var point_x := float(x) * cell_size
+			var point_z := float(z) * cell_size
+			var distance_squared := (point_x - center_x) * (point_x - center_x) + (point_z - center_z) * (point_z - center_z)
+			if distance_squared > radius_squared:
+				continue
+
+			# Calculate local 3x3 kernel average
+			var kernel_sum := 0.0
+			var kernel_count := 0
+			for kz in range(-1, 2):
+				for kx in range(-1, 2):
+					var kernel_grid := Vector2i(x + kx, z + kz)
+					if is_grid_point_valid(kernel_grid):
+						kernel_sum += get_height(kernel_grid)
+						kernel_count += 1
+
+			if kernel_count == 0:
+				continue
+
+			var kernel_average := kernel_sum / float(kernel_count)
+			var current_height := get_height(grid)
+
+			# Apply brush falloff to determine blend amount
+			var normalized_falloff : float = 1.0 - sqrt(distance_squared) / max(radius, 0.001)
+			var shaped_falloff := pow(smoothstep(0.0, 1.0, normalized_falloff), falloff_power)
+			var blend_amount := strength * shaped_falloff
+
+			# Blend current height toward kernel average
+			var new_height : float = lerp(current_height, kernel_average, blend_amount)
+			height_updates[grid] = new_height
+			modified_points += 1
+
+	# Write all height updates back to terrain
+	for grid in height_updates.keys():
+		set_height(grid, height_updates[grid])
+		_add_dirty_chunks_for_grid(grid, dirty_chunks, dirty_lookup)
+
+	TerrainProfiler.log_timing(
+		"TerrainMapData.apply_smooth_brush",
+		profile_start,
+		"center=%s radius=%.2f strength=%.3f falloff=%.2f points=%d dirty_chunks=%d" % [
+			local_center,
+			radius,
+			strength,
+			falloff_power,
+			modified_points,
+			dirty_chunks.size(),
+		]
+	)
+	return dirty_chunks
+
 func get_chunks_using_grid_point(grid: Vector2i) -> Array[Vector2i]:
 	var chunk_coords: Array[Vector2i] = []
 	var cells_per_chunk := get_cells_per_chunk()
