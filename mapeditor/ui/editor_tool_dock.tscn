@@ -1,0 +1,159 @@
+[gd_scene load_steps=2 format=3 uid="uid://cenjxo26wplj1"]
+
+[ext_resource type="Script" path="res://mapeditor/ui/editor_tool_dock.gd" id="1_8avpd"]
+
+[node name="EditorToolDock" type="PanelContainer"]
+custom_minimum_size = Vector2(280, 0)
+anchors_preset = 13
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -280.0
+grow_horizontal = 0
+grow_vertical = 2
+script = ExtResource("1_8avpd")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ToolGrid" type="GridContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+columns = 3
+
+[node name="RaiseLowerButton" type="Button" parent="MarginContainer/VBoxContainer/ToolGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "Raise
+Lower"
+
+[node name="SmoothButton" type="Button" parent="MarginContainer/VBoxContainer/ToolGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Smooth"
+
+[node name="FlattenButton" type="Button" parent="MarginContainer/VBoxContainer/ToolGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Flatten"
+
+[node name="PaintMaterialButton" type="Button" parent="MarginContainer/VBoxContainer/ToolGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Paint
+Material"
+
+[node name="WalkablePaintButton" type="Button" parent="MarginContainer/VBoxContainer/ToolGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Walkable
+Paint"
+
+[node name="BuildablePaintButton" type="Button" parent="MarginContainer/VBoxContainer/ToolGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Buildable
+Paint"
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ToolNameLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Raise/Lower"
+
+[node name="RadiusRow" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RadiusHeader" type="HBoxContainer" parent="MarginContainer/VBoxContainer/RadiusRow"]
+layout_mode = 2
+
+[node name="RadiusLabel" type="Label" parent="MarginContainer/VBoxContainer/RadiusRow/RadiusHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Brush Size"
+
+[node name="RadiusValueLabel" type="Label" parent="MarginContainer/VBoxContainer/RadiusRow/RadiusHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "6.0m"
+horizontal_alignment = 2
+
+[node name="RadiusSlider" type="HSlider" parent="MarginContainer/VBoxContainer/RadiusRow"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 32.0
+step = 0.5
+value = 6.0
+
+[node name="StrengthRow" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="StrengthHeader" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StrengthRow"]
+layout_mode = 2
+
+[node name="StrengthLabel" type="Label" parent="MarginContainer/VBoxContainer/StrengthRow/StrengthHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Brush Strength"
+
+[node name="StrengthValueLabel" type="Label" parent="MarginContainer/VBoxContainer/StrengthRow/StrengthHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "4.0"
+horizontal_alignment = 2
+
+[node name="StrengthSlider" type="HSlider" parent="MarginContainer/VBoxContainer/StrengthRow"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.1
+max_value = 16.0
+step = 0.1
+value = 4.0
+
+[node name="FalloffRow" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FalloffHeader" type="HBoxContainer" parent="MarginContainer/VBoxContainer/FalloffRow"]
+layout_mode = 2
+
+[node name="FalloffLabel" type="Label" parent="MarginContainer/VBoxContainer/FalloffRow/FalloffHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Falloff"
+
+[node name="FalloffValueLabel" type="Label" parent="MarginContainer/VBoxContainer/FalloffRow/FalloffHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "1.00"
+horizontal_alignment = 2
+
+[node name="FalloffSlider" type="HSlider" parent="MarginContainer/VBoxContainer/FalloffRow"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.25
+max_value = 4.0
+step = 0.05
+value = 1.0

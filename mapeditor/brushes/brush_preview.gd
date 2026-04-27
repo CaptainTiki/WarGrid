@@ -54,8 +54,8 @@ func _build_fill_mesh(fill_radius: float) -> ArrayMesh:
 		var angle := TAU * float(i) / float(segments)
 		var next_angle := TAU * float(i + 1) / float(segments)
 		vertices.append(Vector3.ZERO)
-		vertices.append(Vector3(cos(angle) * fill_radius, 0.0, sin(angle) * fill_radius))
 		vertices.append(Vector3(cos(next_angle) * fill_radius, 0.0, sin(next_angle) * fill_radius))
+		vertices.append(Vector3(cos(angle) * fill_radius, 0.0, sin(angle) * fill_radius))
 
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)

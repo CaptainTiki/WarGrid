@@ -3,21 +3,24 @@ class_name TerrainMapData
 
 const GRASS_MATERIAL_ID := 0
 
-@export var playable_chunks := Vector2i(1, 1)
-@export var chunk_size_meters := 64
-@export var border_chunks := 1
+@export var playable_chunks := Vector2i(2, 2)
+@export var chunk_size_meters := 32
+@export var border_chunks := 2
 @export var cell_size := 1.0
 @export var default_height := 0.0
 
 var base_heights := PackedFloat32Array()
 var material_ids := PackedInt32Array()
+var _total_cell_count := Vector2i.ZERO
+var _vertex_count := Vector2i.ZERO
 
 func create_flat_grass_map(
-		new_playable_chunks: Vector2i = Vector2i(1, 1),
+		new_playable_chunks: Vector2i = Vector2i(2, 2),
 		new_default_height: float = 0.0
 ) -> void:
 	playable_chunks = new_playable_chunks
 	default_height = new_default_height
+	_refresh_cached_sizes()
 
 	var vertex_count := get_vertex_count()
 	base_heights.resize(vertex_count.x * vertex_count.y)
@@ -36,10 +39,14 @@ func get_total_chunks() -> Vector2i:
 	return playable_chunks + Vector2i(border_chunks * 2, border_chunks * 2)
 
 func get_total_cell_count() -> Vector2i:
+	if _total_cell_count != Vector2i.ZERO:
+		return _total_cell_count
 	var cells_per_chunk := get_cells_per_chunk()
 	return get_total_chunks() * cells_per_chunk
 
 func get_vertex_count() -> Vector2i:
+	if _vertex_count != Vector2i.ZERO:
+		return _vertex_count
 	return get_total_cell_count() + Vector2i.ONE
 
 func get_total_size() -> Vector2:
@@ -79,6 +86,12 @@ func get_height(grid: Vector2i) -> float:
 		return default_height
 	return base_heights[_height_index(grid)]
 
+func get_height_at(x: int, z: int) -> float:
+	var vertices := get_vertex_count()
+	if x < 0 or z < 0 or x >= vertices.x or z >= vertices.y:
+		return default_height
+	return base_heights[z * vertices.x + x]
+
 func set_height(grid: Vector2i, height: float) -> void:
 	if is_grid_point_valid(grid):
 		base_heights[_height_index(grid)] = height
@@ -92,6 +105,9 @@ func local_to_grid(local_position: Vector3) -> Vector2i:
 func get_position_for_grid(grid: Vector2i) -> Vector3:
 	return Vector3(float(grid.x) * cell_size, get_height(grid), float(grid.y) * cell_size)
 
+func get_position_for_grid_coords(x: int, z: int) -> Vector3:
+	return Vector3(float(x) * cell_size, get_height_at(x, z), float(z) * cell_size)
+
 func get_chunk_for_grid(grid: Vector2i) -> Vector2i:
 	var cells_per_chunk := get_cells_per_chunk()
 	return Vector2i(
@@ -99,12 +115,14 @@ func get_chunk_for_grid(grid: Vector2i) -> Vector2i:
 		clampi(int(floor(float(grid.y) / float(cells_per_chunk))), 0, get_total_chunks().y - 1)
 	)
 
-func apply_height_brush(local_center: Vector3, radius: float, amount: float) -> Array[Vector2i]:
+func apply_height_brush(local_center: Vector3, radius: float, amount: float, falloff_power: float = 1.0) -> Array[Vector2i]:
+	var profile_start := TerrainProfiler.begin()
 	var dirty_chunks: Array[Vector2i] = []
 	var dirty_lookup := {}
 	var radius_cells := int(ceil(radius / cell_size))
 	var center_grid := local_to_grid(local_center)
 	var radius_squared := radius * radius
+	var modified_points := 0
 
 	for z in range(center_grid.y - radius_cells, center_grid.y + radius_cells + 1):
 		for x in range(center_grid.x - radius_cells, center_grid.x + radius_cells + 1):
@@ -118,20 +136,60 @@ func apply_height_brush(local_center: Vector3, radius: float, amount: float) -> 
 			if distance_squared > radius_squared:
 				continue
 
-			var falloff : float = 1.0 - sqrt(distance_squared) / max(radius, 0.001)
-			var shaped_amount := amount * smoothstep(0.0, 1.0, falloff)
+			var normalized_falloff : float = 1.0 - sqrt(distance_squared) / max(radius, 0.001)
+			var shaped_falloff := pow(smoothstep(0.0, 1.0, normalized_falloff), falloff_power)
+			var shaped_amount := amount * shaped_falloff
 			set_height(grid, get_height(grid) + shaped_amount)
+			modified_points += 1
 
-			var chunk_coord := get_chunk_for_grid(grid)
-			var key := _chunk_key(chunk_coord)
-			if not dirty_lookup.has(key):
-				dirty_lookup[key] = true
-				dirty_chunks.append(chunk_coord)
+			_add_dirty_chunks_for_grid(grid, dirty_chunks, dirty_lookup)
 
+	TerrainProfiler.log_timing(
+		"TerrainMapData.apply_height_brush",
+		profile_start,
+		"center=%s radius=%.2f amount=%.3f falloff=%.2f points=%d dirty_chunks=%d" % [
+			local_center,
+			radius,
+			amount,
+			falloff_power,
+			modified_points,
+			dirty_chunks.size(),
+		]
+	)
 	return dirty_chunks
+
+func get_chunks_using_grid_point(grid: Vector2i) -> Array[Vector2i]:
+	var chunk_coords: Array[Vector2i] = []
+	var cells_per_chunk := get_cells_per_chunk()
+	var min_chunk := Vector2i(
+		int(floor(float(grid.x - 1) / float(cells_per_chunk))),
+		int(floor(float(grid.y - 1) / float(cells_per_chunk)))
+	)
+	var max_chunk := get_chunk_for_grid(grid)
+
+	for chunk_y in range(min_chunk.y, max_chunk.y + 1):
+		for chunk_x in range(min_chunk.x, max_chunk.x + 1):
+			var chunk_coord := Vector2i(chunk_x, chunk_y)
+			if is_chunk_valid(chunk_coord):
+				chunk_coords.append(chunk_coord)
+
+	return chunk_coords
 
 func _height_index(grid: Vector2i) -> int:
 	return grid.y * get_vertex_count().x + grid.x
+
+func _refresh_cached_sizes() -> void:
+	var cells_per_chunk := get_cells_per_chunk()
+	_total_cell_count = get_total_chunks() * cells_per_chunk
+	_vertex_count = _total_cell_count + Vector2i.ONE
+
+func _add_dirty_chunks_for_grid(grid: Vector2i, dirty_chunks: Array[Vector2i], dirty_lookup: Dictionary) -> void:
+	for chunk_coord in get_chunks_using_grid_point(grid):
+		var key := _chunk_key(chunk_coord)
+		if dirty_lookup.has(key):
+			continue
+		dirty_lookup[key] = true
+		dirty_chunks.append(chunk_coord)
 
 func _chunk_key(chunk_coord: Vector2i) -> String:
 	return "%d,%d" % [chunk_coord.x, chunk_coord.y]

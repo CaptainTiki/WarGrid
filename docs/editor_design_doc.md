@@ -205,7 +205,7 @@ Terrain is chunked.
 Current chunk design:
 
 ```text
-chunk_size = 64m x 64m
+chunk_size = 32m x 32m
 cell_size = 1m for the prototype
 ```
 
@@ -215,16 +215,16 @@ A maximum playable map size discussed:
 playable_area = 512m x 512m
 ```
 
-At 64m chunks, this means:
+At 32m chunks, this means:
 
 ```text
-8 x 8 playable chunks
+16 x 16 playable chunks
 ```
 
 The terrain also includes a visual-only border:
 
 ```text
-visual_border = 64m on each side
+visual_border = 64m on each side, currently represented as 2 border chunks
 ```
 
 So a 512m x 512m playable area would have a total visual terrain area of:
@@ -270,7 +270,7 @@ The prototype should start with:
 
 ```text
 cell_size = 1m
-chunk_size = 64m
+chunk_size = 32m
 ```
 
 The cell size is not considered final.
@@ -310,15 +310,17 @@ Initial map creation should support:
 
 * Width in chunks.
 * Length in chunks.
-* Fixed 64m chunk size.
-* Fixed 64m visual border on all sides.
+* Fixed 32m chunk size.
+* Fixed 64m visual border on all sides, represented as 2 border chunks.
 * Default terrain height.
 * Default terrain material, such as grass.
 
 The editor should support small test maps first, such as:
 
 ```text
-1 x 1 playable chunk
+2 x 2 playable chunks
+2 chunk visual border on each side
+6 x 6 total generated chunks
 ```
 
 And eventually allow maps up to:
@@ -462,7 +464,7 @@ Terrain Editor v0.1
 Minimum target:
 
 * Create a flat grass map.
-* Choose map width and length in 64m chunks.
+* Choose map width and length in 32m chunks.
 * Automatically include a 64m visual border on all sides.
 * Generate terrain mesh chunks from saved height/material data.
 * Show the terrain in an in-game editor scene.

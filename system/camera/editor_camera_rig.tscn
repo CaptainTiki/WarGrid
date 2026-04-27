@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://bc7gi27evtm53"]
+
+[ext_resource type="Script" path="res://system/camera/editor_camera_rig.gd" id="1_mitp4"]
+
+[node name="EditorCameraRig" type="Node3D"]
+script = ExtResource("1_mitp4")
+
+[node name="PitchPivot" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="PitchPivot"]
+fov = 45.0

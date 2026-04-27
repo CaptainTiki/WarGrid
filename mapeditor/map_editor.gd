@@ -4,37 +4,57 @@ class_name MapEditor
 const BrushPreviewScene := preload("res://mapeditor/brushes/brush_preview.tscn")
 
 @onready var terrain: Terrain = $Terrain
+@onready var camera_rig: EditorCameraRig = $EditorCameraRig
+@onready var tool_dock: EditorToolDock = $CanvasLayer/EditorToolDock
 
 var camera: Camera3D
 var brush_preview: BrushPreview
 var height_brush_tool := HeightBrushTool.new()
 var _last_pick_point: Variant = null
+var _painting := false
+var _lowering := false
+var _active_tool := EditorToolDock.TOOL_HEIGHT
 
 func _ready() -> void:
 	add_child(height_brush_tool)
-	_ensure_editor_camera()
 	_ensure_light()
+	camera_rig.frame_point(terrain.get_center_position())
+	camera = camera_rig.get_camera()
+	tool_dock.tool_selected.connect(_on_tool_selected)
+	tool_dock.brush_radius_changed.connect(_on_brush_radius_changed)
+	tool_dock.brush_strength_changed.connect(_on_brush_strength_changed)
+	tool_dock.brush_falloff_changed.connect(_on_brush_falloff_changed)
+	tool_dock.set_active_tool(_active_tool)
+	tool_dock.set_brush_radius(height_brush_tool.brush_data.radius)
+	tool_dock.set_brush_strength(height_brush_tool.brush_data.strength)
+	tool_dock.set_brush_falloff(height_brush_tool.brush_data.falloff)
 	brush_preview = BrushPreviewScene.instantiate() as BrushPreview
 	terrain.add_child(brush_preview)
 	brush_preview.hide_preview()
-	_center_camera_on_terrain()
 
 func _process(delta: float) -> void:
-	_update_camera(delta)
 	_update_brush()
 	_apply_active_brush(delta)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			height_brush_tool.brush_data.radius = min(height_brush_tool.brush_data.radius + 1.0, 32.0)
-			brush_preview.set_radius(height_brush_tool.brush_data.radius)
+			_set_brush_radius(height_brush_tool.brush_data.radius + 1.0)
+			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			height_brush_tool.brush_data.radius = max(height_brush_tool.brush_data.radius - 1.0, 1.0)
-			brush_preview.set_radius(height_brush_tool.brush_data.radius)
+			_set_brush_radius(height_brush_tool.brush_data.radius - 1.0)
+			get_viewport().set_input_as_handled()
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			_update_brush()
+			_begin_brush_stroke(Input.is_key_pressed(KEY_SHIFT))
+			get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and not event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_end_brush_stroke()
+			get_viewport().set_input_as_handled()
 
 func _update_brush() -> void:
-	_last_pick_point = terrain.get_pick_point(camera, get_viewport().get_mouse_position())
+	_last_pick_point = terrain.get_pick_point(camera, get_viewport().get_mouse_position(), _painting)
 	if _last_pick_point == null:
 		brush_preview.hide_preview()
 		return
@@ -42,32 +62,32 @@ func _update_brush() -> void:
 	brush_preview.set_radius(height_brush_tool.brush_data.radius)
 	brush_preview.show_at(_last_pick_point)
 
-func _apply_active_brush(delta: float) -> void:
+func _apply_active_brush(_delta: float) -> void:
 	if _last_pick_point == null:
 		return
 
-	var painting := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	if not painting:
+	if not _painting:
 		return
 
-	var lowering := Input.is_key_pressed(KEY_SHIFT)
-	height_brush_tool.apply(terrain, _last_pick_point, lowering, delta)
+	height_brush_tool.apply_stroke_sample(terrain, _last_pick_point, _lowering)
 
-func _ensure_editor_camera() -> void:
-	camera = get_viewport().get_camera_3d()
-	if camera != null:
+func _begin_brush_stroke(lowering: bool) -> void:
+	if _last_pick_point == null:
+		return
+	if _active_tool != EditorToolDock.TOOL_HEIGHT:
 		return
 
-	camera = Camera3D.new()
-	camera.name = "EditorCamera"
-	add_child(camera)
-	camera.current = true
-	camera.fov = 45.0
+	_painting = true
+	_lowering = lowering
+	terrain.begin_height_brush_stroke()
+	height_brush_tool.begin_stroke(terrain, _last_pick_point, _lowering)
 
-func _center_camera_on_terrain() -> void:
-	var center := terrain.get_center_position()
-	camera.position = center + Vector3(45.0, 75.0, 75.0)
-	camera.look_at(center, Vector3.UP)
+func _end_brush_stroke() -> void:
+	if not _painting:
+		return
+
+	_painting = false
+	height_brush_tool.end_stroke(terrain)
 
 func _ensure_light() -> void:
 	if has_node("Sun"):
@@ -78,30 +98,23 @@ func _ensure_light() -> void:
 	sun.rotation_degrees = Vector3(-55.0, -35.0, 0.0)
 	add_child(sun)
 
-func _update_camera(delta: float) -> void:
-	var move := Vector3.ZERO
-	if Input.is_key_pressed(KEY_W):
-		move.z -= 1.0
-	if Input.is_key_pressed(KEY_S):
-		move.z += 1.0
-	if Input.is_key_pressed(KEY_A):
-		move.x -= 1.0
-	if Input.is_key_pressed(KEY_D):
-		move.x += 1.0
-	if Input.is_key_pressed(KEY_Q):
-		move.y -= 1.0
-	if Input.is_key_pressed(KEY_E):
-		move.y += 1.0
+func _on_tool_selected(tool_id: int) -> void:
+	_end_brush_stroke()
+	_active_tool = tool_id
+	tool_dock.set_active_tool(_active_tool)
 
-	if move == Vector3.ZERO:
-		return
+func _on_brush_radius_changed(radius: float) -> void:
+	_set_brush_radius(radius)
 
-	var basis := camera.global_basis
-	var forward := -basis.z
-	forward.y = 0.0
-	forward = forward.normalized()
-	var right := basis.x
-	right.y = 0.0
-	right = right.normalized()
-	var speed := 36.0
-	camera.global_position += (right * move.x + forward * move.z + Vector3.UP * move.y) * speed * delta
+func _on_brush_strength_changed(strength: float) -> void:
+	height_brush_tool.brush_data.strength = clampf(strength, 0.1, 16.0)
+	tool_dock.set_brush_strength(height_brush_tool.brush_data.strength)
+
+func _on_brush_falloff_changed(falloff: float) -> void:
+	height_brush_tool.brush_data.falloff = clampf(falloff, 0.25, 4.0)
+	tool_dock.set_brush_falloff(height_brush_tool.brush_data.falloff)
+
+func _set_brush_radius(radius: float) -> void:
+	height_brush_tool.brush_data.radius = clampf(radius, 1.0, 32.0)
+	brush_preview.set_radius(height_brush_tool.brush_data.radius)
+	tool_dock.set_brush_radius(height_brush_tool.brush_data.radius)
