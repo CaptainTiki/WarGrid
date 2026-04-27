@@ -273,6 +273,32 @@ func get_pick_point(camera: Camera3D, screen_position: Vector2, profile_raycast:
 	local_hit.y = map_data.get_height(map_data.local_to_grid(local_hit))
 	return local_hit
 
+func get_height_at_local_position(local_position: Vector3) -> float:
+	if map_data == null:
+		return 0.0
+	return map_data.get_height(map_data.local_to_grid(local_position))
+
+func get_visual_cell_from_local_position(local_position: Vector3) -> Vector2i:
+	if map_data == null:
+		return Vector2i.ZERO
+	return Vector2i(
+		int(floor(local_position.x / map_data.cell_size)),
+		int(floor(local_position.z / map_data.cell_size))
+	)
+
+func get_playable_cell_from_local_position(local_position: Vector3) -> Vector2i:
+	if map_data == null:
+		return Vector2i.ZERO
+	return map_data.visual_cell_to_playable_cell(get_visual_cell_from_local_position(local_position))
+
+func get_walkable_at_local_position(local_position: Vector3) -> int:
+	if map_data == null:
+		return TerrainMapData.Walkable.NONE
+	return map_data.get_walkable_value_for_visual_cell(get_visual_cell_from_local_position(local_position))
+
+func is_ground_walkable_at_local_position(local_position: Vector3) -> bool:
+	return get_walkable_at_local_position(local_position) == TerrainMapData.Walkable.ALL
+
 func get_center_position() -> Vector3:
 	if map_data == null:
 		return Vector3.ZERO

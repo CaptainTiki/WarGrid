@@ -5,10 +5,10 @@ const TerrainOverlayMeshBuilderScript := preload("res://terrain/terrain_overlay_
 
 var data := TerrainChunkData.new()
 var map_data: TerrainMapData
-var mesh_instance: MeshInstance3D
-var overlay_mesh_instance: MeshInstance3D
-var static_body: StaticBody3D
-var collision_shape: CollisionShape3D
+@onready var mesh_instance: MeshInstance3D = $MeshInstance3D
+@onready var overlay_mesh_instance: MeshInstance3D = $OverlayMeshInstance3D
+@onready var static_body: StaticBody3D = $StaticBody3D
+@onready var collision_shape: CollisionShape3D = $StaticBody3D/CollisionShape3D
 var terrain_material: Material
 var overlay_material: Material
 var overlay_mode := TerrainMapData.OverlayMode.NONE
@@ -20,24 +20,7 @@ func setup(chunk_coord: Vector2i, new_map_data: TerrainMapData, material: Materi
 	map_data = new_map_data
 	terrain_material = material
 	overlay_material = new_overlay_material
-	if mesh_instance == null:
-		mesh_instance = MeshInstance3D.new()
-		mesh_instance.name = "Mesh"
-		add_child(mesh_instance)
-	if overlay_mesh_instance == null:
-		overlay_mesh_instance = MeshInstance3D.new()
-		overlay_mesh_instance.name = "OverlayMesh"
-		overlay_mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(overlay_mesh_instance)
-	if static_body == null:
-		static_body = StaticBody3D.new()
-		static_body.name = "TerrainPickBody"
-		add_child(static_body)
 	static_body.add_to_group("terrain_pick_colliders")
-	if collision_shape == null:
-		collision_shape = CollisionShape3D.new()
-		collision_shape.name = "CollisionShape3D"
-		static_body.add_child(collision_shape)
 	mesh_instance.material_override = terrain_material
 	overlay_mesh_instance.material_override = overlay_material
 	overlay_mesh_instance.visible = false

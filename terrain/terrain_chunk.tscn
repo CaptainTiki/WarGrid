@@ -4,3 +4,13 @@
 
 [node name="TerrainChunk" type="Node3D" unique_id=1126006579]
 script = ExtResource("1_kxnrh")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+
+[node name="OverlayMeshInstance3D" type="MeshInstance3D" parent="."]
+visible = false
+cast_shadow = 0
+
+[node name="StaticBody3D" type="StaticBody3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D"]
