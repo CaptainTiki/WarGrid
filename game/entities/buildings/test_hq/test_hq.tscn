@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://game/entities/commands/train_infantry_command.gd" id="4_train"]
 [ext_resource type="Script" path="res://game/entities/commands/set_rally_point_command.gd" id="5_rally"]
 [ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="6_cmdbase"]
+[ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="7_footprint"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_hq"]
 size = Vector3(4, 2, 4)
@@ -61,3 +62,11 @@ shape = SubResource("BoxShape_click")
 script = ExtResource("3_cmdcp")
 entity_parent = NodePath("../..")
 commands = Array[ExtResource("6_cmdbase")]([SubResource("Resource_train"), SubResource("Resource_rally")])
+
+[node name="EntityFootprintComponent" type="Node" parent="Components"]
+script = ExtResource("7_footprint")
+entity_parent = NodePath("../..")
+shape = 1
+half_extents = Vector2(2, 2)
+blocks_pathfinding = true
+is_static = true

@@ -29,6 +29,17 @@ func has_command(command_id: StringName) -> bool:
 		return false
 	return command_component.has_command(command_id)
 
+func get_footprint_component() -> Node:
+	return get_component(&"EntityFootprintComponent")
+
+func get_footprint_radius() -> float:
+	var footprint := get_footprint_component()
+	if footprint == null:
+		return 0.0
+	if footprint.has_method("get_separation_radius"):
+		return footprint.get_separation_radius()
+	return 0.0
+
 func execute_command(command_id: StringName, context: Dictionary = {}) -> bool:
 	var command_component := get_component(&"CommandComponent")
 	if command_component == null or not command_component.has_method("execute_command"):

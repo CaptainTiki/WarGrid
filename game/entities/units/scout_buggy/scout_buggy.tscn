@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://game/entities/commands/stop_command.gd" id="7_stop_cmd"]
 [ext_resource type="Script" path="res://game/entities/commands/attack_command.gd" id="8_attack_cmd"]
 [ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="9_cmdbase"]
+[ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="10_footprint"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_body"]
 size = Vector3(1.5, 0.55, 2.0)
@@ -83,3 +84,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.65, 0, 0.85)
 script = ExtResource("5_cmdcp")
 entity_parent = NodePath("../..")
 commands = Array[ExtResource("9_cmdbase")]([SubResource("Resource_move"), SubResource("Resource_stop"), SubResource("Resource_attack")])
+
+[node name="EntityFootprintComponent" type="Node" parent="Components"]
+script = ExtResource("10_footprint")
+entity_parent = NodePath("../..")
+radius = 0.9

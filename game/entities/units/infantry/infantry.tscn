@@ -9,6 +9,7 @@
 [ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="6_262tm"]
 [ext_resource type="Script" path="res://game/entities/commands/stop_command.gd" id="6_stop"]
 [ext_resource type="Script" path="res://game/entities/commands/attack_command.gd" id="7_attack"]
+[ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="8_footprint"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_1u67m"]
 radius = 0.25
@@ -71,5 +72,10 @@ move_root_path = NodePath("../..")
 script = ExtResource("4_cmdcp")
 entity_parent = NodePath("../..")
 commands = Array[ExtResource("6_262tm")]([SubResource("Resource_move"), SubResource("Resource_stop"), SubResource("Resource_attack")])
+
+[node name="EntityFootprintComponent" type="Node" parent="Components"]
+script = ExtResource("8_footprint")
+entity_parent = NodePath("../..")
+radius = 0.4
 
 [node name="HealthComponent" type="Node3D" parent="Components" unique_id=328953229]

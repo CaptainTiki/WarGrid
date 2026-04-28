@@ -87,10 +87,7 @@ func _handle_right_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	if not _terrain.is_ground_walkable_at_local_position(local_pos):
 		return
 
-	_execute_command_on_entities(_selection.get_selected_entities(), &"move", {
-		"target_position": _terrain.to_global(local_pos),
-		"terrain": _terrain,
-	})
+	_execute_move_command_on_entities(_selection.get_selected_entities(), _terrain.to_global(local_pos))
 
 func _begin_left_mouse(screen_pos: Vector2) -> void:
 	_left_mouse_down = true
@@ -160,10 +157,14 @@ func _execute_point_target_command(camera: Camera3D, screen_pos: Vector2) -> voi
 	var local_pos: Vector3 = terrain_local
 	if not _terrain.is_ground_walkable_at_local_position(local_pos):
 		return
-	_execute_command_on_entities(_target_source_entities, _target_command_id, {
-		"target_position": _terrain.to_global(local_pos),
-		"terrain": _terrain,
-	})
+	var target_position := _terrain.to_global(local_pos)
+	if _target_command_id == &"move":
+		_execute_move_command_on_entities(_target_source_entities, target_position)
+	else:
+		_execute_command_on_entities(_target_source_entities, _target_command_id, {
+			"target_position": target_position,
+			"terrain": _terrain,
+		})
 	_cancel_targeting()
 
 func _execute_entity_target_command(camera: Camera3D, screen_pos: Vector2) -> void:
@@ -199,6 +200,39 @@ func _execute_command_on_entities(entities: Array[EntityBase], command_id: Strin
 			success_count += 1
 	print("Command %s executed on %d entities." % [command_id, success_count])
 	return success_count
+
+func _execute_move_command_on_entities(entities: Array[EntityBase], target_position: Vector3) -> int:
+	var movable_entities := _get_entities_with_command(entities, &"move")
+	if movable_entities.size() < 2:
+		return _execute_command_on_entities(movable_entities, &"move", {
+			"target_position": target_position,
+			"terrain": _terrain,
+		})
+
+	var center := Vector3.ZERO
+	for entity in movable_entities:
+		center += entity.global_position
+	center /= movable_entities.size()
+
+	var success_count := 0
+	for entity in movable_entities:
+		var offset := entity.global_position - center
+		offset.y = 0.0
+		var assigned_target := _snap_world_position_to_terrain(target_position + offset)
+		if entity.execute_command(&"move", {
+			"target_position": assigned_target,
+			"terrain": _terrain,
+		}):
+			success_count += 1
+	print("Command move executed on %d entities." % success_count)
+	return success_count
+
+func _snap_world_position_to_terrain(world_position: Vector3) -> Vector3:
+	if _terrain == null:
+		return world_position
+	var local_position := _terrain.to_local(world_position)
+	var height := _terrain.get_height_at_local_position(local_position)
+	return _terrain.to_global(Vector3(local_position.x, height, local_position.z))
 
 func _raycast_entity(camera: Camera3D, screen_pos: Vector2) -> EntityBase:
 	var from: Vector3 = camera.project_ray_origin(screen_pos)
