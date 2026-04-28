@@ -23,6 +23,12 @@ func get_available_commands() -> Array[CommandBase]:
 		return []
 	return command_component.get_available_commands(self)
 
+func has_command(command_id: StringName) -> bool:
+	var command_component := get_component(&"CommandComponent")
+	if command_component == null or not command_component.has_method("has_command"):
+		return false
+	return command_component.has_command(command_id)
+
 func execute_command(command_id: StringName, context: Dictionary = {}) -> bool:
 	var command_component := get_component(&"CommandComponent")
 	if command_component == null or not command_component.has_method("execute_command"):

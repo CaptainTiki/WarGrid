@@ -1,31 +1,5 @@
 CURRENT RTS BUILD QUEUE
 
-v22 - Selection system refactor
-- SelectionComponent becomes SelectionManager-style
-- Track Array[EntityBase], not just one selected entity
-- Single-click selects one entity
-- Click empty ground clears selection
-- Drag-select selects units only
-- Buildings are click-selectable, but not drag-selected
-- Shift-add/remove optional, maybe defer
-- Selection changed signal sends full selected list
-
-v23 - Common-command UI for multi-selection
-- Command panel accepts selected_entities array
-- Shows common commands shared by all selected entities
-- Common means intersection by command_id
-- If one Infantry + one ScoutBike selected: show Move / Stop / Attack
-- If Infantry + TestHQ selected: likely show only commands they truly share, maybe none
-- Button click dispatches command to all valid selected entities
-- Targeting mode works with selected group
-
-v24 - Multi-unit command dispatch
-- Right-click terrain issues Move to all selected mobile units
-- Stop stops all selected units with StopCommand
-- Attack targeted command sends Attack to all selected attackers
-- Buildings can still use their command UI when selected alone
-- Mixed selections are safe and boring
-
 v25 - Group movement v0
 - For now, selected units can all receive the same move target/path
 - Add simple destination spreading or small offsets so units do not stack perfectly

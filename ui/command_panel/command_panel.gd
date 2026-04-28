@@ -1,7 +1,7 @@
 extends PanelContainer
 class_name CommandPanel
 
-signal command_targeting_requested(source_entity: EntityBase, command_id: StringName, target_mode: int)
+signal command_targeting_requested(source_entities: Array[EntityBase], command_id: StringName, target_mode: int)
 
 const BUTTON_SIZE := Vector2(32.0, 32.0)
 
@@ -27,7 +27,7 @@ func set_selected_entity(entity: EntityBase) -> void:
 	else:
 		set_selected_entities([entity])
 
-func set_selected_entities(entities: Array) -> void:
+func set_selected_entities(entities: Array[EntityBase]) -> void:
 	_selected_entities.clear()
 	for entity in entities:
 		var selected_entity := entity as EntityBase
@@ -43,16 +43,45 @@ func _rebuild() -> void:
 		child.free()
 
 	if _selected_entities.is_empty():
-		_selected_label.text = "No entity selected"
+		_selected_label.text = "No selection"
 		return
 	if _selected_entities.size() > 1:
 		_selected_label.text = "%d selected" % _selected_entities.size()
 	else:
 		_selected_label.text = _get_entity_display_name(_selected_entity)
 
-	if _selected_entity != null:
-		for command in _selected_entity.get_available_commands():
-			_command_list.add_child(_create_command_row(command))
+	var common_commands := _get_common_commands(_selected_entities)
+	if common_commands.is_empty() and _selected_entities.size() > 1:
+		var label := Label.new()
+		label.text = "No common commands"
+		_command_list.add_child(label)
+		return
+
+	for command in common_commands:
+		_command_list.add_child(_create_command_row(command))
+
+func _get_common_commands(entities: Array[EntityBase]) -> Array[CommandBase]:
+	var common_commands: Array[CommandBase] = []
+	if entities.is_empty():
+		return common_commands
+	if entities.size() == 1:
+		return entities[0].get_available_commands()
+
+	var seen_ids: Dictionary = {}
+	for command in entities[0].get_available_commands():
+		if command == null or seen_ids.has(command.command_id):
+			continue
+		seen_ids[command.command_id] = true
+
+		var found_on_all := true
+		for i in range(1, entities.size()):
+			if not entities[i].has_command(command.command_id):
+				found_on_all = false
+				break
+		if found_on_all:
+			common_commands.append(command)
+
+	return common_commands
 
 func _create_command_row(command: CommandBase) -> Control:
 	var row := HBoxContainer.new()
@@ -78,12 +107,32 @@ func _create_command_row(command: CommandBase) -> Control:
 	return row
 
 func _on_command_pressed(command: CommandBase) -> void:
-	if _selected_entity == null or command == null:
+	if command == null:
+		return
+	var source_entities := _get_entities_with_command(command.command_id)
+	if source_entities.is_empty():
 		return
 	if command.target_mode == CommandBase.TargetMode.NONE:
-		_selected_entity.execute_command(command.command_id, {})
+		_execute_command_on_entities(source_entities, command.command_id, {})
 		return
-	command_targeting_requested.emit(_selected_entity, command.command_id, command.target_mode)
+	command_targeting_requested.emit(source_entities, command.command_id, command.target_mode)
+
+func _get_entities_with_command(command_id: StringName) -> Array[EntityBase]:
+	var entities: Array[EntityBase] = []
+	for entity in _selected_entities:
+		if entity != null and entity.has_command(command_id):
+			entities.append(entity)
+	return entities
+
+func _execute_command_on_entities(entities: Array[EntityBase], command_id: StringName, context: Dictionary) -> int:
+	var success_count := 0
+	for entity in entities:
+		if entity == null or not entity.has_command(command_id):
+			continue
+		if entity.execute_command(command_id, context):
+			success_count += 1
+	print("Command %s executed on %d entities." % [command_id, success_count])
+	return success_count
 
 func _get_entity_display_name(entity: EntityBase) -> String:
 	if entity.display_name.strip_edges() != "":

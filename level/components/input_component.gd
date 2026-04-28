@@ -7,7 +7,7 @@ var _terrain: Terrain = null
 var _camera_rig: PlayerCameraRig = null
 var _selection: SelectionComponent = null
 var _selection_rect: ColorRect = null
-var _target_source_entity: EntityBase = null
+var _target_source_entities: Array[EntityBase] = []
 var _target_command_id: StringName
 var _target_mode := CommandBase.TargetMode.NONE
 var _left_mouse_down := false
@@ -27,10 +27,11 @@ func setup(
 	_selection_rect = selection_rect
 	_hide_selection_rect()
 
-func begin_command_targeting(source_entity: EntityBase, command_id: StringName, target_mode: int) -> void:
-	if source_entity == null:
+func begin_command_targeting(source_entities: Array[EntityBase], command_id: StringName, target_mode: int) -> void:
+	var valid_sources := _get_entities_with_command(source_entities, command_id)
+	if valid_sources.is_empty():
 		return
-	_target_source_entity = source_entity
+	_target_source_entities = valid_sources
 	_target_command_id = command_id
 	_target_mode = target_mode
 
@@ -86,10 +87,7 @@ func _handle_right_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	if not _terrain.is_ground_walkable_at_local_position(local_pos):
 		return
 
-	var selected_entity := _selection.get_primary_selected_entity()
-	if selected_entity == null:
-		return
-	selected_entity.execute_command(&"move", {
+	_execute_command_on_entities(_selection.get_selected_entities(), &"move", {
 		"target_position": _terrain.to_global(local_pos),
 		"terrain": _terrain,
 	})
@@ -145,7 +143,7 @@ func _hide_selection_rect() -> void:
 		_selection_rect.visible = false
 
 func _handle_targeting_left_click(camera: Camera3D, screen_pos: Vector2) -> void:
-	if _target_source_entity == null:
+	if _target_source_entities.is_empty():
 		_cancel_targeting()
 		return
 	if _target_mode == CommandBase.TargetMode.POINT or _target_mode == CommandBase.TargetMode.AREA:
@@ -162,7 +160,7 @@ func _execute_point_target_command(camera: Camera3D, screen_pos: Vector2) -> voi
 	var local_pos: Vector3 = terrain_local
 	if not _terrain.is_ground_walkable_at_local_position(local_pos):
 		return
-	_target_source_entity.execute_command(_target_command_id, {
+	_execute_command_on_entities(_target_source_entities, _target_command_id, {
 		"target_position": _terrain.to_global(local_pos),
 		"terrain": _terrain,
 	})
@@ -172,18 +170,35 @@ func _execute_entity_target_command(camera: Camera3D, screen_pos: Vector2) -> vo
 	var target_entity := _raycast_entity(camera, screen_pos)
 	if target_entity == null:
 		return
-	_target_source_entity.execute_command(_target_command_id, {
+	_execute_command_on_entities(_target_source_entities, _target_command_id, {
 		"target_entity": target_entity,
 	})
 	_cancel_targeting()
 
 func _is_targeting() -> bool:
-	return _target_source_entity != null
+	return not _target_source_entities.is_empty()
 
 func _cancel_targeting() -> void:
-	_target_source_entity = null
+	_target_source_entities.clear()
 	_target_command_id = &""
 	_target_mode = CommandBase.TargetMode.NONE
+
+func _get_entities_with_command(entities: Array[EntityBase], command_id: StringName) -> Array[EntityBase]:
+	var valid_entities: Array[EntityBase] = []
+	for entity in entities:
+		if entity != null and entity.has_command(command_id):
+			valid_entities.append(entity)
+	return valid_entities
+
+func _execute_command_on_entities(entities: Array[EntityBase], command_id: StringName, context: Dictionary) -> int:
+	var success_count := 0
+	for entity in entities:
+		if entity == null or not entity.has_command(command_id):
+			continue
+		if entity.execute_command(command_id, context):
+			success_count += 1
+	print("Command %s executed on %d entities." % [command_id, success_count])
+	return success_count
 
 func _raycast_entity(camera: Camera3D, screen_pos: Vector2) -> EntityBase:
 	var from: Vector3 = camera.project_ray_origin(screen_pos)

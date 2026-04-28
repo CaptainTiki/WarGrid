@@ -25,7 +25,7 @@ layout_mode = 2
 
 [node name="SelectedEntityLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "No entity selected"
+text = "No selection"
 
 [node name="CommandList" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
