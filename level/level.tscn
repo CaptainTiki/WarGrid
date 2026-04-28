@@ -36,3 +36,8 @@ script = ExtResource("2_4jssj")
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="CommandPanel" parent="UI" instance=ExtResource("8_cmdpn")]
+
+[node name="SelectionRect" type="ColorRect" parent="UI"]
+visible = false
+mouse_filter = 2
+color = Color(0.25, 0.65, 1, 0.22)

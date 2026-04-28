@@ -5,6 +5,8 @@ class_name TestHQ
 
 func _ready() -> void:
 	display_name = "Test HQ"
+	add_to_group("selectable_entities")
+	add_to_group("selectable_buildings")
 	$ClickArea.add_to_group("entity_clickable")
 
 func set_selected(value: bool) -> void:

@@ -9,6 +9,7 @@ const BUTTON_SIZE := Vector2(32.0, 32.0)
 @onready var _command_list: VBoxContainer = $MarginContainer/VBoxContainer/CommandList
 
 var _selected_entity: EntityBase = null
+var _selected_entities: Array[EntityBase] = []
 var _button_texture: Texture2D
 var _button_hover_texture: Texture2D
 var _button_pressed_texture: Texture2D
@@ -18,23 +19,40 @@ func _ready() -> void:
 	_button_texture = _make_button_texture(Color(0.18, 0.22, 0.26, 1.0))
 	_button_hover_texture = _make_button_texture(Color(0.25, 0.31, 0.37, 1.0))
 	_button_pressed_texture = _make_button_texture(Color(0.11, 0.15, 0.19, 1.0))
-	set_selected_entity(null)
+	set_selected_entities([])
 
 func set_selected_entity(entity: EntityBase) -> void:
-	_selected_entity = entity
+	if entity == null:
+		set_selected_entities([])
+	else:
+		set_selected_entities([entity])
+
+func set_selected_entities(entities: Array) -> void:
+	_selected_entities.clear()
+	for entity in entities:
+		var selected_entity := entity as EntityBase
+		if selected_entity != null:
+			_selected_entities.append(selected_entity)
+	_selected_entity = null
+	if not _selected_entities.is_empty():
+		_selected_entity = _selected_entities[0]
 	_rebuild()
 
 func _rebuild() -> void:
 	for child in _command_list.get_children():
 		child.free()
 
-	if _selected_entity == null:
+	if _selected_entities.is_empty():
 		_selected_label.text = "No entity selected"
 		return
+	if _selected_entities.size() > 1:
+		_selected_label.text = "%d selected" % _selected_entities.size()
+	else:
+		_selected_label.text = _get_entity_display_name(_selected_entity)
 
-	_selected_label.text = _get_entity_display_name(_selected_entity)
-	for command in _selected_entity.get_available_commands():
-		_command_list.add_child(_create_command_row(command))
+	if _selected_entity != null:
+		for command in _selected_entity.get_available_commands():
+			_command_list.add_child(_create_command_row(command))
 
 func _create_command_row(command: CommandBase) -> Control:
 	var row := HBoxContainer.new()

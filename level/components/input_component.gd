@@ -1,17 +1,31 @@
 extends Node
 class_name InputComponent
 
+const DRAG_THRESHOLD := 8.0
+
 var _terrain: Terrain = null
 var _camera_rig: PlayerCameraRig = null
 var _selection: SelectionComponent = null
+var _selection_rect: ColorRect = null
 var _target_source_entity: EntityBase = null
 var _target_command_id: StringName
 var _target_mode := CommandBase.TargetMode.NONE
+var _left_mouse_down := false
+var _dragging_selection := false
+var _drag_start_position := Vector2.ZERO
+var _drag_current_position := Vector2.ZERO
 
-func setup(terrain: Terrain, camera_rig: PlayerCameraRig, selection: SelectionComponent) -> void:
+func setup(
+		terrain: Terrain,
+		camera_rig: PlayerCameraRig,
+		selection: SelectionComponent,
+		selection_rect: ColorRect = null
+) -> void:
 	_terrain = terrain
 	_camera_rig = camera_rig
 	_selection = selection
+	_selection_rect = selection_rect
+	_hide_selection_rect()
 
 func begin_command_targeting(source_entity: EntityBase, command_id: StringName, target_mode: int) -> void:
 	if source_entity == null:
@@ -28,18 +42,25 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cancel_targeting()
 			get_viewport().set_input_as_handled()
 		return
-	if not event is InputEventMouseButton or not event.pressed:
+	if event is InputEventMouseMotion and _left_mouse_down and not _is_targeting():
+		_update_drag_selection(event.position)
+		return
+	if not event is InputEventMouseButton:
 		return
 
 	var camera: Camera3D = _camera_rig.get_camera()
 
 	if event.button_index == MOUSE_BUTTON_LEFT:
-		if _is_targeting():
+		if event.pressed and _is_targeting():
 			_handle_targeting_left_click(camera, event.position)
-		else:
-			_handle_left_click(camera, event.position)
+			get_viewport().set_input_as_handled()
+			return
+		if event.pressed:
+			_begin_left_mouse(event.position)
+		elif _left_mouse_down:
+			_finish_left_mouse(camera, event.position)
 		get_viewport().set_input_as_handled()
-	elif event.button_index == MOUSE_BUTTON_RIGHT:
+	elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 		if _is_targeting():
 			_cancel_targeting()
 		else:
@@ -49,9 +70,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _handle_left_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	var entity := _raycast_entity(camera, screen_pos)
 	if entity != null:
-		_selection.select(entity)
+		_selection.select_single(entity)
 	else:
-		_selection.deselect()
+		_selection.clear_selection()
 
 func _handle_right_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	if not _selection.has_selection():
@@ -65,13 +86,63 @@ func _handle_right_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	if not _terrain.is_ground_walkable_at_local_position(local_pos):
 		return
 
-	var selected_entity := _selection.get_selected() as EntityBase
+	var selected_entity := _selection.get_primary_selected_entity()
 	if selected_entity == null:
 		return
 	selected_entity.execute_command(&"move", {
 		"target_position": _terrain.to_global(local_pos),
 		"terrain": _terrain,
 	})
+
+func _begin_left_mouse(screen_pos: Vector2) -> void:
+	_left_mouse_down = true
+	_dragging_selection = false
+	_drag_start_position = screen_pos
+	_drag_current_position = screen_pos
+	_hide_selection_rect()
+
+func _finish_left_mouse(camera: Camera3D, screen_pos: Vector2) -> void:
+	if _dragging_selection:
+		_select_units_in_rect(camera, _make_drag_rect(_drag_start_position, screen_pos))
+	else:
+		_handle_left_click(camera, screen_pos)
+	_left_mouse_down = false
+	_dragging_selection = false
+	_hide_selection_rect()
+
+func _update_drag_selection(screen_pos: Vector2) -> void:
+	_drag_current_position = screen_pos
+	if not _dragging_selection and _drag_start_position.distance_to(screen_pos) >= DRAG_THRESHOLD:
+		_dragging_selection = true
+	if _dragging_selection:
+		_show_selection_rect(_make_drag_rect(_drag_start_position, screen_pos))
+
+func _select_units_in_rect(camera: Camera3D, rect: Rect2) -> void:
+	var selected_units: Array[EntityBase] = []
+	for node in get_tree().get_nodes_in_group("selectable_units"):
+		var entity := node as EntityBase
+		if entity == null:
+			continue
+		var screen_pos := camera.unproject_position(entity.global_position)
+		if rect.has_point(screen_pos):
+			selected_units.append(entity)
+	_selection.select_many(selected_units)
+
+func _make_drag_rect(a: Vector2, b: Vector2) -> Rect2:
+	var min_pos := Vector2(minf(a.x, b.x), minf(a.y, b.y))
+	var max_pos := Vector2(maxf(a.x, b.x), maxf(a.y, b.y))
+	return Rect2(min_pos, max_pos - min_pos)
+
+func _show_selection_rect(rect: Rect2) -> void:
+	if _selection_rect == null:
+		return
+	_selection_rect.visible = true
+	_selection_rect.position = rect.position
+	_selection_rect.size = rect.size
+
+func _hide_selection_rect() -> void:
+	if _selection_rect != null:
+		_selection_rect.visible = false
 
 func _handle_targeting_left_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	if _target_source_entity == null:

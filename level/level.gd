@@ -13,7 +13,7 @@ class_name Level
 
 func _ready() -> void:
 	_ensure_light()
-	_selection.selection_changed.connect(_command_panel.set_selected_entity)
+	_selection.selection_changed.connect(_command_panel.set_selected_entities)
 	_command_panel.command_targeting_requested.connect(_input.begin_command_targeting)
 
 func load_map(path: String) -> bool:
@@ -32,7 +32,7 @@ func _setup_entities() -> void:
 	_infantry.set_terrain(terrain)
 	_scout_bike.set_terrain(terrain)
 	_scout_buggy.set_terrain(terrain)
-	_input.setup(terrain, camera_rig, _selection)
+	_input.setup(terrain, camera_rig, _selection, $UI/SelectionRect)
 	var center: Vector3 = terrain.get_center_position()
 	_place_entity_on_terrain(_infantry, center + Vector3(5.0, 0.0, 0.0))
 	_place_entity_on_terrain(_scout_bike, center + Vector3(5.0, 0.0, 5.0))

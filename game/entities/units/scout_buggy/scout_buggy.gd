@@ -6,6 +6,8 @@ class_name ScoutBuggy
 
 func _ready() -> void:
 	display_name = "Scout Buggy"
+	add_to_group("selectable_entities")
+	add_to_group("selectable_units")
 	$ClickArea.add_to_group("entity_clickable")
 
 func set_terrain(terrain: Terrain) -> void:

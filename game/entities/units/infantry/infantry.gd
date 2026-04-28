@@ -5,6 +5,8 @@ class_name Infantry
 @onready var _selection_ring: MeshInstance3D = $SelectionRing
 
 func _ready() -> void:
+	add_to_group("selectable_entities")
+	add_to_group("selectable_units")
 	$ClickArea.add_to_group("entity_clickable")
 
 func set_terrain(terrain: Terrain) -> void:

@@ -1,12 +1,5 @@
 CURRENT RTS BUILD QUEUE
 
-v21 - Actual A* pathfinding spike
-- Add cheap grid A*
-- Use terrain chunk walkability data
-- MoveCommand uses direct move if clear, A* if blocked
-- MovementComponent consumes whole path
-- Crude path debug drawing
-
 v22 - Selection system refactor
 - SelectionComponent becomes SelectionManager-style
 - Track Array[EntityBase], not just one selected entity
