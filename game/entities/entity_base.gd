@@ -40,6 +40,25 @@ func get_footprint_radius() -> float:
 		return footprint.get_separation_radius()
 	return 0.0
 
+func get_health_component() -> Node:
+	return get_component(&"HealthComponent")
+
+func has_health() -> bool:
+	var health := get_health_component()
+	return health != null and health.has_method("apply_damage")
+
+func is_alive() -> bool:
+	var health := get_health_component()
+	if health == null or not health.has_method("is_alive"):
+		return true
+	return health.is_alive()
+
+func apply_damage(amount: float, source: EntityBase = null) -> bool:
+	var health := get_health_component()
+	if health == null or not health.has_method("apply_damage"):
+		return false
+	return health.apply_damage(amount, source)
+
 func execute_command(command_id: StringName, context: Dictionary = {}) -> bool:
 	var command_component := get_component(&"CommandComponent")
 	if command_component == null or not command_component.has_method("execute_command"):

@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://game/entities/commands/stop_command.gd" id="6_stop"]
 [ext_resource type="Script" path="res://game/entities/commands/attack_command.gd" id="7_attack"]
 [ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="8_footprint"]
+[ext_resource type="Script" path="res://game/entities/components/health_component.gd" id="9_health"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_1u67m"]
 radius = 0.25
@@ -78,4 +79,6 @@ script = ExtResource("8_footprint")
 entity_parent = NodePath("../..")
 radius = 0.4
 
-[node name="HealthComponent" type="Node3D" parent="Components" unique_id=328953229]
+[node name="HealthComponent" type="Node" parent="Components" unique_id=328953229]
+script = ExtResource("9_health")
+entity_parent = NodePath("../..")

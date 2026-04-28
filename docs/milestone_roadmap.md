@@ -13,15 +13,15 @@ v28 - Team/faction + target rules
 - buildings/units know friend vs enemy
 - command buttons can enable/disable based on target validity
 
-v29 - Production skeleton
-- TestHQ Train Infantry actually queues/spawns infantry
-- simple rally point stores position
-- trained unit moves to rally point if set
-
-v30 - Enemy dummy / target practice
+v29 - Enemy dummy / target practice
 - add hostile test entity
 - attack command can damage it
 - no AI yet, just a valid target
+
+v30 - Production skeleton
+- TestHQ Train Infantry actually queues/spawns infantry
+- simple rally point stores position
+- trained unit moves to rally point if set
 
 v31 - Basic enemy brain
 - enemy acquires target

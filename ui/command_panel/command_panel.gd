@@ -6,10 +6,12 @@ signal command_targeting_requested(source_entities: Array[EntityBase], command_i
 const BUTTON_SIZE := Vector2(32.0, 32.0)
 
 @onready var _selected_label: Label = $MarginContainer/VBoxContainer/SelectedEntityLabel
+@onready var _health_label: Label = $MarginContainer/VBoxContainer/HealthLabel
 @onready var _command_list: VBoxContainer = $MarginContainer/VBoxContainer/CommandList
 
 var _selected_entity: EntityBase = null
 var _selected_entities: Array[EntityBase] = []
+var _selected_health_component: Node = null
 var _button_texture: Texture2D
 var _button_hover_texture: Texture2D
 var _button_pressed_texture: Texture2D
@@ -31,7 +33,7 @@ func set_selected_entities(entities: Array[EntityBase]) -> void:
 	_selected_entities.clear()
 	for entity in entities:
 		var selected_entity := entity as EntityBase
-		if selected_entity != null:
+		if is_instance_valid(selected_entity) and selected_entity != null:
 			_selected_entities.append(selected_entity)
 	_selected_entity = null
 	if not _selected_entities.is_empty():
@@ -39,16 +41,20 @@ func set_selected_entities(entities: Array[EntityBase]) -> void:
 	_rebuild()
 
 func _rebuild() -> void:
+	_prune_invalid_selected_entities()
 	for child in _command_list.get_children():
 		child.free()
 
 	if _selected_entities.is_empty():
 		_selected_label.text = "No selection"
+		_hide_health_label()
 		return
 	if _selected_entities.size() > 1:
 		_selected_label.text = "%d selected" % _selected_entities.size()
+		_hide_health_label()
 	else:
 		_selected_label.text = _get_entity_display_name(_selected_entity)
+		_update_health_label(_selected_entity)
 
 	var common_commands := _get_common_commands(_selected_entities)
 	if common_commands.is_empty() and _selected_entities.size() > 1:
@@ -109,6 +115,7 @@ func _create_command_row(command: CommandBase) -> Control:
 func _on_command_pressed(command: CommandBase) -> void:
 	if command == null:
 		return
+	_prune_invalid_selected_entities()
 	var source_entities := _get_entities_with_command(command.command_id)
 	if source_entities.is_empty():
 		return
@@ -120,19 +127,53 @@ func _on_command_pressed(command: CommandBase) -> void:
 func _get_entities_with_command(command_id: StringName) -> Array[EntityBase]:
 	var entities: Array[EntityBase] = []
 	for entity in _selected_entities:
-		if entity != null and entity.has_command(command_id):
+		if is_instance_valid(entity) and entity != null and entity.has_command(command_id):
 			entities.append(entity)
 	return entities
 
 func _execute_command_on_entities(entities: Array[EntityBase], command_id: StringName, context: Dictionary) -> int:
 	var success_count := 0
 	for entity in entities:
-		if entity == null or not entity.has_command(command_id):
+		if not is_instance_valid(entity) or entity == null or not entity.has_command(command_id):
 			continue
 		if entity.execute_command(command_id, context):
 			success_count += 1
 	print("Command %s executed on %d entities." % [command_id, success_count])
+	_rebuild()
 	return success_count
+
+func _prune_invalid_selected_entities() -> void:
+	for i in range(_selected_entities.size() - 1, -1, -1):
+		if not is_instance_valid(_selected_entities[i]) or _selected_entities[i] == null:
+			_selected_entities.remove_at(i)
+	_selected_entity = null
+	if not _selected_entities.is_empty():
+		_selected_entity = _selected_entities[0]
+
+func _update_health_label(entity: EntityBase) -> void:
+	var health := entity.get_health_component()
+	if health == null:
+		_hide_health_label()
+		return
+	if _selected_health_component != health:
+		_disconnect_health_label()
+		_selected_health_component = health
+		health.health_changed.connect(_on_selected_health_changed)
+	_health_label.visible = true
+	_health_label.text = "Health: %.0f / %.0f" % [health.current_health, health.max_health]
+
+func _hide_health_label() -> void:
+	_disconnect_health_label()
+	_health_label.visible = false
+
+func _disconnect_health_label() -> void:
+	if _selected_health_component != null and is_instance_valid(_selected_health_component):
+		if _selected_health_component.health_changed.is_connected(_on_selected_health_changed):
+			_selected_health_component.health_changed.disconnect(_on_selected_health_changed)
+	_selected_health_component = null
+
+func _on_selected_health_changed(current_health: float, max_health: float) -> void:
+	_health_label.text = "Health: %.0f / %.0f" % [current_health, max_health]
 
 func _get_entity_display_name(entity: EntityBase) -> String:
 	if entity.display_name.strip_edges() != "":

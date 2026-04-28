@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://game/entities/commands/set_rally_point_command.gd" id="5_rally"]
 [ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="6_cmdbase"]
 [ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="7_footprint"]
+[ext_resource type="Script" path="res://game/entities/components/health_component.gd" id="8_health"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_hq"]
 size = Vector3(4, 2, 4)
@@ -70,3 +71,8 @@ shape = 1
 half_extents = Vector2(2, 2)
 blocks_pathfinding = true
 is_static = true
+
+[node name="HealthComponent" type="Node" parent="Components"]
+script = ExtResource("8_health")
+entity_parent = NodePath("../..")
+max_health = 500.0

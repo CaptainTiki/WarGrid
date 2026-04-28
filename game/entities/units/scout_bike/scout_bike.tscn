@@ -10,6 +10,7 @@
 [ext_resource type="Script" uid="uid://dld6f02n3qv4m" path="res://game/entities/commands/attack_command.gd" id="8_attack_cmd"]
 [ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="9_cmdbase"]
 [ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="10_footprint"]
+[ext_resource type="Script" path="res://game/entities/components/health_component.gd" id="11_health"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_body"]
 size = Vector3(0.5, 0.35, 1.4)
@@ -83,3 +84,8 @@ commands = Array[ExtResource("9_cmdbase")]([SubResource("Resource_move"), SubRes
 script = ExtResource("10_footprint")
 entity_parent = NodePath("../..")
 radius = 0.6
+
+[node name="HealthComponent" type="Node" parent="Components"]
+script = ExtResource("11_health")
+entity_parent = NodePath("../..")
+max_health = 120.0

@@ -187,14 +187,14 @@ func _cancel_targeting() -> void:
 func _get_entities_with_command(entities: Array[EntityBase], command_id: StringName) -> Array[EntityBase]:
 	var valid_entities: Array[EntityBase] = []
 	for entity in entities:
-		if entity != null and entity.has_command(command_id):
+		if is_instance_valid(entity) and entity != null and entity.has_command(command_id):
 			valid_entities.append(entity)
 	return valid_entities
 
 func _execute_command_on_entities(entities: Array[EntityBase], command_id: StringName, context: Dictionary) -> int:
 	var success_count := 0
 	for entity in entities:
-		if entity == null or not entity.has_command(command_id):
+		if not is_instance_valid(entity) or entity == null or not entity.has_command(command_id):
 			continue
 		if entity.execute_command(command_id, context):
 			success_count += 1
@@ -211,11 +211,15 @@ func _execute_move_command_on_entities(entities: Array[EntityBase], target_posit
 
 	var center := Vector3.ZERO
 	for entity in movable_entities:
+		if not is_instance_valid(entity):
+			continue
 		center += entity.global_position
 	center /= movable_entities.size()
 
 	var success_count := 0
 	for entity in movable_entities:
+		if not is_instance_valid(entity):
+			continue
 		var offset := entity.global_position - center
 		offset.y = 0.0
 		var assigned_target := _snap_world_position_to_terrain(target_position + offset)
