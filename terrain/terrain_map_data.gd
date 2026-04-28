@@ -29,7 +29,7 @@ func create_flat_grass_map(
 ) -> void:
 	playable_chunks = new_playable_chunks
 	default_height = new_default_height
-	_refresh_cached_sizes()
+	refresh_cached_sizes()
 
 	var vertex_count := get_vertex_count()
 	base_heights.resize(vertex_count.x * vertex_count.y)
@@ -41,7 +41,7 @@ func create_flat_grass_map(
 	for i in material_ids.size():
 		material_ids[i] = GRASS_MATERIAL_ID
 
-	_create_default_splat_map()
+	create_default_splat_map()
 	_create_default_gameplay_data()
 
 func get_cells_per_chunk() -> int:
@@ -99,19 +99,19 @@ func visual_cell_to_playable_cell(visual_cell: Vector2i) -> Vector2i:
 	return visual_cell - get_playable_cell_min()
 
 func get_walkable_value_for_visual_cell(visual_cell: Vector2i) -> int:
-	var index: int = _playable_index_for_visual_cell(visual_cell)
+	var index: int = playable_index_for_visual_cell(visual_cell)
 	if index < 0 or index >= walkable_data.size():
 		return Walkable.NONE
 	return walkable_data[index]
 
 func get_buildable_value_for_visual_cell(visual_cell: Vector2i) -> int:
-	var index: int = _playable_index_for_visual_cell(visual_cell)
+	var index: int = playable_index_for_visual_cell(visual_cell)
 	if index < 0 or index >= buildable_data.size():
 		return Buildable.BLOCKED
 	return buildable_data[index]
 
 func get_fow_height_value_for_visual_cell(visual_cell: Vector2i) -> int:
-	var index: int = _playable_index_for_visual_cell(visual_cell)
+	var index: int = playable_index_for_visual_cell(visual_cell)
 	if index < 0 or index >= fow_height_data.size():
 		return 0
 	return fow_height_data[index]
@@ -168,306 +168,6 @@ func get_chunk_for_grid(grid: Vector2i) -> Vector2i:
 		clampi(int(floor(float(grid.y) / float(cells_per_chunk))), 0, get_total_chunks().y - 1)
 	)
 
-func apply_height_brush(local_center: Vector3, radius: float, amount: float, falloff_power: float = 1.0) -> Array[Vector2i]:
-	var profile_start := TerrainProfiler.begin()
-	var dirty_chunks: Array[Vector2i] = []
-	var dirty_lookup := {}
-	var radius_cells := int(ceil(radius / cell_size))
-	var center_grid := local_to_grid(local_center)
-	var radius_squared := radius * radius
-	var modified_points := 0
-
-	for z in range(center_grid.y - radius_cells, center_grid.y + radius_cells + 1):
-		for x in range(center_grid.x - radius_cells, center_grid.x + radius_cells + 1):
-			var grid := Vector2i(x, z)
-			if not is_grid_point_valid(grid):
-				continue
-
-			var point_x := float(x) * cell_size
-			var point_z := float(z) * cell_size
-			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
-			if distance_squared > radius_squared:
-				continue
-
-			var normalized_falloff : float = 1.0 - sqrt(distance_squared) / max(radius, 0.001)
-			var shaped_falloff := pow(smoothstep(0.0, 1.0, normalized_falloff), falloff_power)
-			var shaped_amount := amount * shaped_falloff
-			set_height(grid, get_height(grid) + shaped_amount)
-			modified_points += 1
-
-			_add_dirty_chunks_for_grid(grid, dirty_chunks, dirty_lookup)
-
-	TerrainProfiler.log_timing(
-		"TerrainMapData.apply_height_brush",
-		profile_start,
-		"center=%s radius=%.2f amount=%.3f falloff=%.2f points=%d dirty_chunks=%d" % [
-			local_center,
-			radius,
-			amount,
-			falloff_power,
-			modified_points,
-			dirty_chunks.size(),
-		]
-	)
-	return dirty_chunks
-
-func apply_smooth_brush(local_center: Vector3, radius: float, strength: float, falloff_power: float = 1.0) -> Array[Vector2i]:
-	var profile_start := TerrainProfiler.begin()
-	var dirty_chunks: Array[Vector2i] = []
-	var dirty_lookup := {}
-	var radius_cells := int(ceil(radius / cell_size))
-	var center_grid := local_to_grid(local_center)
-	var radius_squared := radius * radius
-	var modified_points := 0
-	var center_x := local_center.x
-	var center_z := local_center.z
-
-	# Store new heights in temporary dict to avoid read/write conflicts
-	var height_updates := {}
-
-	# For each grid point within brush radius
-	for z in range(center_grid.y - radius_cells, center_grid.y + radius_cells + 1):
-		for x in range(center_grid.x - radius_cells, center_grid.x + radius_cells + 1):
-			var grid := Vector2i(x, z)
-			if not is_grid_point_valid(grid):
-				continue
-
-			var point_x := float(x) * cell_size
-			var point_z := float(z) * cell_size
-			var distance_squared := (point_x - center_x) * (point_x - center_x) + (point_z - center_z) * (point_z - center_z)
-			if distance_squared > radius_squared:
-				continue
-
-			# Calculate local 3x3 kernel average
-			var kernel_sum := 0.0
-			var kernel_count := 0
-			for kz in range(-1, 2):
-				for kx in range(-1, 2):
-					var kernel_grid := Vector2i(x + kx, z + kz)
-					if is_grid_point_valid(kernel_grid):
-						kernel_sum += get_height(kernel_grid)
-						kernel_count += 1
-
-			if kernel_count == 0:
-				continue
-
-			var kernel_average := kernel_sum / float(kernel_count)
-			var current_height := get_height(grid)
-
-			# Apply brush falloff to determine blend amount
-			var normalized_falloff : float = 1.0 - sqrt(distance_squared) / max(radius, 0.001)
-			var shaped_falloff := pow(smoothstep(0.0, 1.0, normalized_falloff), falloff_power)
-			var blend_amount := strength * shaped_falloff
-
-			# Blend current height toward kernel average
-			var new_height : float = lerp(current_height, kernel_average, blend_amount)
-			height_updates[grid] = new_height
-			modified_points += 1
-
-	# Write all height updates back to terrain
-	for grid in height_updates.keys():
-		set_height(grid, height_updates[grid])
-		_add_dirty_chunks_for_grid(grid, dirty_chunks, dirty_lookup)
-
-	TerrainProfiler.log_timing(
-		"TerrainMapData.apply_smooth_brush",
-		profile_start,
-		"center=%s radius=%.2f strength=%.3f falloff=%.2f points=%d dirty_chunks=%d" % [
-			local_center,
-			radius,
-			strength,
-			falloff_power,
-			modified_points,
-			dirty_chunks.size(),
-		]
-	)
-	return dirty_chunks
-
-func apply_flatten_brush(local_center: Vector3, radius: float, strength: float, falloff_power: float, target_height: float) -> Array[Vector2i]:
-	var profile_start := TerrainProfiler.begin()
-	var dirty_chunks: Array[Vector2i] = []
-	var dirty_lookup := {}
-	var radius_cells := int(ceil(radius / cell_size))
-	var center_grid := local_to_grid(local_center)
-	var radius_squared := radius * radius
-	var modified_points := 0
-	var center_x := local_center.x
-	var center_z := local_center.z
-
-	# For each grid point within brush radius
-	for z in range(center_grid.y - radius_cells, center_grid.y + radius_cells + 1):
-		for x in range(center_grid.x - radius_cells, center_grid.x + radius_cells + 1):
-			var grid := Vector2i(x, z)
-			if not is_grid_point_valid(grid):
-				continue
-
-			var point_x := float(x) * cell_size
-			var point_z := float(z) * cell_size
-			var distance_squared := (point_x - center_x) * (point_x - center_x) + (point_z - center_z) * (point_z - center_z)
-			if distance_squared > radius_squared:
-				continue
-
-			var current_height := get_height(grid)
-
-			# Apply brush falloff to determine blend amount
-			var normalized_falloff : float = 1.0 - sqrt(distance_squared) / max(radius, 0.001)
-			var shaped_falloff := pow(smoothstep(0.0, 1.0, normalized_falloff), falloff_power)
-			var blend_amount := strength * shaped_falloff
-
-			# Blend current height toward target height
-			var new_height : float = lerp(current_height, target_height, blend_amount)
-			set_height(grid, new_height)
-			modified_points += 1
-
-			_add_dirty_chunks_for_grid(grid, dirty_chunks, dirty_lookup)
-
-	TerrainProfiler.log_timing(
-		"TerrainMapData.apply_flatten_brush",
-		profile_start,
-		"center=%s radius=%.2f strength=%.3f falloff=%.2f target=%.2f points=%d dirty_chunks=%d" % [
-			local_center,
-			radius,
-			strength,
-			falloff_power,
-			target_height,
-			modified_points,
-			dirty_chunks.size(),
-		]
-	)
-	return dirty_chunks
-
-func apply_material_paint_brush(local_center: Vector3, radius: float, strength: float, falloff_power: float, selected_channel: int) -> Array[Vector2i]:
-	if splat_map == null:
-		_create_default_splat_map()
-
-	var dirty_chunks: Array[Vector2i] = []
-	var dirty_lookup := {}
-	var radius_cells := int(ceil(radius / cell_size))
-	var center_pixel := local_to_splat_pixel(local_center)
-	var radius_squared := radius * radius
-	var channel := clampi(selected_channel, 0, SPLAT_CHANNEL_COUNT - 1)
-	var paint_strength := clampf(strength, 0.0, 1.0)
-	var image_size := get_splat_map_size()
-
-	for z in range(center_pixel.y - radius_cells, center_pixel.y + radius_cells + 1):
-		if z < 0 or z >= image_size.y:
-			continue
-		for x in range(center_pixel.x - radius_cells, center_pixel.x + radius_cells + 1):
-			if x < 0 or x >= image_size.x:
-				continue
-
-			var point_x := (float(x) + 0.5) * cell_size
-			var point_z := (float(z) + 0.5) * cell_size
-			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
-			if distance_squared > radius_squared:
-				continue
-
-			var normalized_falloff : float = 1.0 - sqrt(distance_squared) / max(radius, 0.001)
-			var shaped_falloff := pow(smoothstep(0.0, 1.0, normalized_falloff), falloff_power)
-			var blend_amount := clampf(paint_strength * shaped_falloff, 0.0, 1.0)
-			var weights := _color_to_weights(splat_map.get_pixel(x, z))
-			for i in weights.size():
-				weights[i] = lerpf(weights[i], 1.0 if i == channel else 0.0, blend_amount)
-			_normalize_weights(weights)
-			splat_map.set_pixel(x, z, Color(weights[0], weights[1], weights[2], weights[3]))
-
-			_add_dirty_chunks_for_grid(Vector2i(x, z), dirty_chunks, dirty_lookup)
-
-	return dirty_chunks
-
-func apply_walkable_paint_brush(local_center: Vector3, radius: float, walkable_value: int) -> Array[Vector2i]:
-	var dirty_chunks: Array[Vector2i] = []
-	var dirty_lookup := {}
-	var radius_cells := int(ceil(radius / cell_size))
-	var center_cell := local_to_splat_pixel(local_center)
-	var radius_squared := radius * radius
-	var value := clampi(walkable_value, Walkable.ALL, Walkable.NONE)
-	var playable_min: Vector2i = get_playable_cell_min()
-	var playable_max: Vector2i = get_playable_cell_max_exclusive()
-
-	for z in range(center_cell.y - radius_cells, center_cell.y + radius_cells + 1):
-		if z < playable_min.y or z >= playable_max.y:
-			continue
-		for x in range(center_cell.x - radius_cells, center_cell.x + radius_cells + 1):
-			if x < playable_min.x or x >= playable_max.x:
-				continue
-
-			var point_x := (float(x) + 0.5) * cell_size
-			var point_z := (float(z) + 0.5) * cell_size
-			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
-			if distance_squared > radius_squared:
-				continue
-
-			var index: int = _playable_index_for_visual_cell(Vector2i(x, z))
-			if index < 0 or index >= walkable_data.size():
-				continue
-			walkable_data[index] = value
-			_add_dirty_chunks_for_grid(Vector2i(x, z), dirty_chunks, dirty_lookup)
-
-	return dirty_chunks
-
-func apply_buildable_paint_brush(local_center: Vector3, radius: float, buildable_value: int) -> Array[Vector2i]:
-	var dirty_chunks: Array[Vector2i] = []
-	var dirty_lookup := {}
-	var radius_cells := int(ceil(radius / cell_size))
-	var center_cell := local_to_splat_pixel(local_center)
-	var radius_squared := radius * radius
-	var value := clampi(buildable_value, Buildable.OPEN, Buildable.BLOCKED)
-	var playable_min: Vector2i = get_playable_cell_min()
-	var playable_max: Vector2i = get_playable_cell_max_exclusive()
-
-	for z in range(center_cell.y - radius_cells, center_cell.y + radius_cells + 1):
-		if z < playable_min.y or z >= playable_max.y:
-			continue
-		for x in range(center_cell.x - radius_cells, center_cell.x + radius_cells + 1):
-			if x < playable_min.x or x >= playable_max.x:
-				continue
-
-			var point_x := (float(x) + 0.5) * cell_size
-			var point_z := (float(z) + 0.5) * cell_size
-			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
-			if distance_squared > radius_squared:
-				continue
-
-			var index: int = _playable_index_for_visual_cell(Vector2i(x, z))
-			if index < 0 or index >= buildable_data.size():
-				continue
-			buildable_data[index] = value
-			_add_dirty_chunks_for_grid(Vector2i(x, z), dirty_chunks, dirty_lookup)
-
-	return dirty_chunks
-
-func apply_fow_height_paint_brush(local_center: Vector3, radius: float, fow_height: int) -> Array[Vector2i]:
-	var dirty_chunks: Array[Vector2i] = []
-	var dirty_lookup := {}
-	var radius_cells := int(ceil(radius / cell_size))
-	var center_cell := local_to_splat_pixel(local_center)
-	var radius_squared := radius * radius
-	var value := clampi(fow_height, 0, 3)
-	var playable_min: Vector2i = get_playable_cell_min()
-	var playable_max: Vector2i = get_playable_cell_max_exclusive()
-
-	for z in range(center_cell.y - radius_cells, center_cell.y + radius_cells + 1):
-		if z < playable_min.y or z >= playable_max.y:
-			continue
-		for x in range(center_cell.x - radius_cells, center_cell.x + radius_cells + 1):
-			if x < playable_min.x or x >= playable_max.x:
-				continue
-
-			var point_x := (float(x) + 0.5) * cell_size
-			var point_z := (float(z) + 0.5) * cell_size
-			var distance_squared := Vector2(point_x, point_z).distance_squared_to(Vector2(local_center.x, local_center.z))
-			if distance_squared > radius_squared:
-				continue
-
-			var index: int = _playable_index_for_visual_cell(Vector2i(x, z))
-			if index < 0 or index >= fow_height_data.size():
-				continue
-			fow_height_data[index] = value
-			_add_dirty_chunks_for_grid(Vector2i(x, z), dirty_chunks, dirty_lookup)
-
-	return dirty_chunks
-
 func local_to_splat_pixel(local_position: Vector3) -> Vector2i:
 	var size := get_splat_map_size()
 	return Vector2i(
@@ -492,18 +192,33 @@ func get_chunks_using_grid_point(grid: Vector2i) -> Array[Vector2i]:
 
 	return chunk_coords
 
-func _height_index(grid: Vector2i) -> int:
-	return grid.y * get_vertex_count().x + grid.x
+func add_dirty_chunks_for_grid(grid: Vector2i, dirty_chunks: Array[Vector2i], dirty_lookup: Dictionary) -> void:
+	for chunk_coord in get_chunks_using_grid_point(grid):
+		var key := _chunk_key(chunk_coord)
+		if dirty_lookup.has(key):
+			continue
+		dirty_lookup[key] = true
+		dirty_chunks.append(chunk_coord)
 
-func _refresh_cached_sizes() -> void:
-	var cells_per_chunk := get_cells_per_chunk()
-	_total_cell_count = get_total_chunks() * cells_per_chunk
-	_vertex_count = _total_cell_count + Vector2i.ONE
+func playable_index_for_visual_cell(visual_cell: Vector2i) -> int:
+	if not is_visual_cell_in_playable_area(visual_cell):
+		return -1
+	var playable_cell: Vector2i = visual_cell_to_playable_cell(visual_cell)
+	var playable_cells: Vector2i = get_playable_cell_count()
+	return playable_cell.y * playable_cells.x + playable_cell.x
 
-func _create_default_splat_map() -> void:
+func create_default_splat_map() -> void:
 	var size := get_total_cell_count()
 	splat_map = Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
 	splat_map.fill(Color(1.0, 0.0, 0.0, 0.0))
+
+func _height_index(grid: Vector2i) -> int:
+	return grid.y * get_vertex_count().x + grid.x
+
+func refresh_cached_sizes() -> void:
+	var cells_per_chunk := get_cells_per_chunk()
+	_total_cell_count = get_total_chunks() * cells_per_chunk
+	_vertex_count = _total_cell_count + Vector2i.ONE
 
 func _create_default_gameplay_data() -> void:
 	var playable_cells: Vector2i = get_playable_cell_count()
@@ -515,38 +230,6 @@ func _create_default_gameplay_data() -> void:
 		walkable_data[i] = Walkable.ALL
 		buildable_data[i] = Buildable.OPEN
 		fow_height_data[i] = 0
-
-func _color_to_weights(color: Color) -> Array[float]:
-	return [color.r, color.g, color.b, color.a]
-
-func _normalize_weights(weights: Array[float]) -> void:
-	var total := 0.0
-	for i in weights.size():
-		weights[i] = maxf(weights[i], 0.0)
-		total += weights[i]
-	if total <= 0.0001:
-		weights[0] = 1.0
-		weights[1] = 0.0
-		weights[2] = 0.0
-		weights[3] = 0.0
-		return
-	for i in weights.size():
-		weights[i] /= total
-
-func _add_dirty_chunks_for_grid(grid: Vector2i, dirty_chunks: Array[Vector2i], dirty_lookup: Dictionary) -> void:
-	for chunk_coord in get_chunks_using_grid_point(grid):
-		var key := _chunk_key(chunk_coord)
-		if dirty_lookup.has(key):
-			continue
-		dirty_lookup[key] = true
-		dirty_chunks.append(chunk_coord)
-
-func _playable_index_for_visual_cell(visual_cell: Vector2i) -> int:
-	if not is_visual_cell_in_playable_area(visual_cell):
-		return -1
-	var playable_cell: Vector2i = visual_cell_to_playable_cell(visual_cell)
-	var playable_cells: Vector2i = get_playable_cell_count()
-	return playable_cell.y * playable_cells.x + playable_cell.x
 
 func _chunk_key(chunk_coord: Vector2i) -> String:
 	return "%d,%d" % [chunk_coord.x, chunk_coord.y]
