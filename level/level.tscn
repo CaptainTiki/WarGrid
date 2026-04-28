@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://cyiylf4rbj1to"]
+[gd_scene load_steps=11 format=3 uid="uid://cyiylf4rbj1to"]
 
 [ext_resource type="Script" path="res://level/level.gd" id="1_y1t8g"]
 [ext_resource type="Script" uid="uid://cmxlihyhms710" path="res://terrain/terrain.gd" id="2_4jssj"]
@@ -6,6 +6,10 @@
 [ext_resource type="PackedScene" path="res://game/entities/units/infantry/infantry.tscn" id="4_infty"]
 [ext_resource type="PackedScene" path="res://level/components/selection_component.tscn" id="5_selct"]
 [ext_resource type="PackedScene" path="res://level/components/input_component.tscn" id="6_inpct"]
+[ext_resource type="PackedScene" path="res://game/entities/buildings/test_hq/test_hq.tscn" id="7_hq"]
+[ext_resource type="PackedScene" path="res://ui/command_panel/command_panel.tscn" id="8_cmdpn"]
+[ext_resource type="PackedScene" path="res://game/entities/units/scout_bike/scout_bike.tscn" id="9_bike"]
+[ext_resource type="PackedScene" path="res://game/entities/units/scout_buggy/scout_buggy.tscn" id="10_buggy"]
 
 [node name="Level" type="Node3D"]
 script = ExtResource("1_y1t8g")
@@ -17,8 +21,18 @@ script = ExtResource("2_4jssj")
 
 [node name="Infantry" parent="." instance=ExtResource("4_infty")]
 
+[node name="TestHQ" parent="." instance=ExtResource("7_hq")]
+
+[node name="ScoutBike" parent="." instance=ExtResource("9_bike")]
+
+[node name="ScoutBuggy" parent="." instance=ExtResource("10_buggy")]
+
 [node name="Components" type="Node" parent="."]
 
 [node name="SelectionComponent" parent="Components" instance=ExtResource("5_selct")]
 
 [node name="InputComponent" parent="Components" instance=ExtResource("6_inpct")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="CommandPanel" parent="UI" instance=ExtResource("8_cmdpn")]

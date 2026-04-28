@@ -12,5 +12,5 @@ enum TargetMode { NONE, POINT, ENTITY, AREA }
 func can_execute(entity: EntityBase, context: Dictionary) -> bool:
 	return entity != null
 
-func execute(entity: EntityBase, context: Dictionary) -> void:
-	pass
+func execute(entity: EntityBase, context: Dictionary) -> bool:
+	return true

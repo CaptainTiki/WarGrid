@@ -268,6 +268,22 @@ func get_walkable_at_local_position(local_position: Vector3) -> int:
 func is_ground_walkable_at_local_position(local_position: Vector3) -> bool:
 	return get_walkable_at_local_position(local_position) == TerrainMapData.Walkable.ALL
 
+func get_pathfinding_bounds(cell_size_override: float = cell_size) -> Rect2i:
+	if map_data == null:
+		return Rect2i()
+	var path_cell_size: float = maxf(cell_size_override, 0.01)
+	var playable_min := map_data.get_playable_min()
+	var playable_max := map_data.get_playable_max()
+	var min_cell := Vector2i(
+		int(floor(playable_min.x / path_cell_size)),
+		int(floor(playable_min.y / path_cell_size))
+	)
+	var max_cell := Vector2i(
+		int(ceil(playable_max.x / path_cell_size)),
+		int(ceil(playable_max.y / path_cell_size))
+	)
+	return Rect2i(min_cell, max_cell - min_cell)
+
 func get_center_position() -> Vector3:
 	if map_data == null:
 		return Vector3.ZERO

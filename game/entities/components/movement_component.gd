@@ -30,6 +30,12 @@ func clear_path() -> void:
 func has_path() -> bool:
 	return not _path.is_empty()
 
+func get_terrain_finder_count() -> int:
+	return _finders.size()
+
+func get_path_point_count() -> int:
+	return _path.size()
+
 func _process(delta: float) -> void:
 	if _path.is_empty() or _terrain == null:
 		return

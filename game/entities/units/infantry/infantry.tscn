@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://sp1lgt20h31w"]
 
 [ext_resource type="Script" uid="uid://b302blwoyqyf4" path="res://game/entities/units/infantry/infantry.gd" id="1_6o1ch"]
-[ext_resource type="Script" path="res://game/entities/components/movement_component.gd" id="2_mvmnt"]
+[ext_resource type="Script" uid="uid://d15krtaegpub7" path="res://game/entities/components/movement_component.gd" id="2_mvmnt"]
 [ext_resource type="PackedScene" path="res://game/entities/components/terrain_finder.tscn" id="3_tfndr"]
 [ext_resource type="Script" path="res://game/entities/components/entity_click_area.gd" id="3_vp0a5"]
-[ext_resource type="Script" path="res://game/entities/components/command_component.gd" id="4_cmdcp"]
+[ext_resource type="Script" uid="uid://cvq6nkaf1n2bo" path="res://game/entities/components/command_component.gd" id="4_cmdcp"]
 [ext_resource type="Script" path="res://game/entities/commands/move_command.gd" id="5_move"]
 [ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="6_262tm"]
 [ext_resource type="Script" path="res://game/entities/commands/stop_command.gd" id="6_stop"]

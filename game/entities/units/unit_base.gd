@@ -1,2 +1,2 @@
-extends "res://game/entities/entity_base.gd"
+extends EntityBase
 class_name UnitBase

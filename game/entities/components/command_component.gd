@@ -31,8 +31,7 @@ func execute_command(command_id: StringName, entity: EntityBase, context: Dictio
 		return false
 	if not command.can_execute(entity, context):
 		return false
-	command.execute(entity, context)
-	return true
+	return command.execute(entity, context)
 
 func _get_command(command_id: StringName) -> CommandBase:
 	for command in commands:

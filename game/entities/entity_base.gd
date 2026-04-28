@@ -28,3 +28,6 @@ func execute_command(command_id: StringName, context: Dictionary = {}) -> bool:
 	if command_component == null or not command_component.has_method("execute_command"):
 		return false
 	return command_component.execute_command(command_id, self, context)
+
+func set_selected(value: bool) -> void:
+	pass

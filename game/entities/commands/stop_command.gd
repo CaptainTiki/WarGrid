@@ -13,7 +13,9 @@ func can_execute(entity: EntityBase, context: Dictionary) -> bool:
 		return false
 	return entity.get_component(&"MovementComponent") is MovementComponent
 
-func execute(entity: EntityBase, context: Dictionary) -> void:
+func execute(entity: EntityBase, context: Dictionary) -> bool:
 	var movement := entity.get_component(&"MovementComponent") as MovementComponent
 	if movement != null:
 		movement.clear_path()
+		return true
+	return false
