@@ -26,9 +26,9 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _handle_left_click(camera: Camera3D, screen_pos: Vector2) -> void:
-	var unit = _raycast_unit(camera, screen_pos)
-	if unit != null:
-		_selection.select(unit)
+	var entity := _raycast_entity(camera, screen_pos)
+	if entity != null:
+		_selection.select(entity)
 	else:
 		_selection.deselect()
 
@@ -44,9 +44,15 @@ func _handle_right_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	if not _terrain.is_ground_walkable_at_local_position(local_pos):
 		return
 
-	_selection.get_selected().move_to(_terrain.to_global(local_pos))
+	var selected_entity := _selection.get_selected() as EntityBase
+	if selected_entity == null:
+		return
+	selected_entity.execute_command(&"move", {
+		"target_position": _terrain.to_global(local_pos),
+		"terrain": _terrain,
+	})
 
-func _raycast_unit(camera: Camera3D, screen_pos: Vector2) -> Variant:
+func _raycast_entity(camera: Camera3D, screen_pos: Vector2) -> EntityBase:
 	var from: Vector3 = camera.project_ray_origin(screen_pos)
 	var to: Vector3 = from + camera.project_ray_normal(screen_pos) * 4096.0
 	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(from, to)
@@ -56,6 +62,9 @@ func _raycast_unit(camera: Camera3D, screen_pos: Vector2) -> Variant:
 	if hit.is_empty():
 		return null
 	var collider = hit.get("collider")
-	if collider == null or not collider.is_in_group("unit_clickable"):
+	if collider == null or not collider.is_in_group("entity_clickable"):
 		return null
-	return collider.owner
+	if collider.has_method("get_entity_parent"):
+		return collider.get_entity_parent()
+	push_warning("%s is in entity_clickable but does not expose an entity_parent." % collider.name)
+	return null

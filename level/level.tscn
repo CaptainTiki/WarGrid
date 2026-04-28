@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://level/level.gd" id="1_y1t8g"]
 [ext_resource type="Script" uid="uid://cmxlihyhms710" path="res://terrain/terrain.gd" id="2_4jssj"]
 [ext_resource type="PackedScene" path="res://level/components/player_camera_rig.tscn" id="3_akgwb"]
-[ext_resource type="PackedScene" path="res://game/units/infantry/infantry.tscn" id="4_infty"]
+[ext_resource type="PackedScene" path="res://game/entities/units/infantry/infantry.tscn" id="4_infty"]
 [ext_resource type="PackedScene" path="res://level/components/selection_component.tscn" id="5_selct"]
 [ext_resource type="PackedScene" path="res://level/components/input_component.tscn" id="6_inpct"]
 

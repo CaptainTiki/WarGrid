@@ -1,8 +1,14 @@
-[gd_scene format=3 uid="uid://bjg8drdsyx0x6"]
+[gd_scene format=3 uid="uid://sp1lgt20h31w"]
 
-[ext_resource type="Script" uid="uid://b302blwoyqyf4" path="res://game/units/infantry/infantry.gd" id="1_6o1ch"]
-[ext_resource type="Script" uid="uid://d15krtaegpub7" path="res://game/units/components/movement_component.gd" id="2_mvmnt"]
-[ext_resource type="PackedScene" path="res://game/units/components/terrain_finder.tscn" id="3_tfndr"]
+[ext_resource type="Script" uid="uid://b302blwoyqyf4" path="res://game/entities/units/infantry/infantry.gd" id="1_6o1ch"]
+[ext_resource type="Script" path="res://game/entities/components/movement_component.gd" id="2_mvmnt"]
+[ext_resource type="PackedScene" path="res://game/entities/components/terrain_finder.tscn" id="3_tfndr"]
+[ext_resource type="Script" path="res://game/entities/components/entity_click_area.gd" id="3_vp0a5"]
+[ext_resource type="Script" path="res://game/entities/components/command_component.gd" id="4_cmdcp"]
+[ext_resource type="Script" path="res://game/entities/commands/move_command.gd" id="5_move"]
+[ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="6_262tm"]
+[ext_resource type="Script" path="res://game/entities/commands/stop_command.gd" id="6_stop"]
+[ext_resource type="Script" path="res://game/entities/commands/attack_command.gd" id="7_attack"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_1u67m"]
 radius = 0.25
@@ -21,6 +27,15 @@ albedo_color = Color(0.2, 1, 0.2, 1)
 radius = 0.3
 height = 1.0
 
+[sub_resource type="Resource" id="Resource_move"]
+script = ExtResource("5_move")
+
+[sub_resource type="Resource" id="Resource_stop"]
+script = ExtResource("6_stop")
+
+[sub_resource type="Resource" id="Resource_attack"]
+script = ExtResource("7_attack")
+
 [node name="Infantry" type="Node3D" unique_id=330935211]
 script = ExtResource("1_6o1ch")
 
@@ -37,6 +52,8 @@ mesh = SubResource("CylinderMesh_selring")
 surface_material_override/0 = SubResource("Material_selring")
 
 [node name="ClickArea" type="Area3D" parent="." unique_id=373849144]
+script = ExtResource("3_vp0a5")
+entity_parent = NodePath("..")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="ClickArea" unique_id=174856289]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
@@ -46,7 +63,13 @@ shape = SubResource("CapsuleShape_click")
 
 [node name="MovementComponent" type="Node3D" parent="Components" unique_id=123844542]
 script = ExtResource("2_mvmnt")
+move_root_path = NodePath("../..")
 
 [node name="TerrainFinder" parent="Components/MovementComponent" unique_id=588620282 instance=ExtResource("3_tfndr")]
+
+[node name="CommandComponent" type="Node" parent="Components" unique_id=76396824]
+script = ExtResource("4_cmdcp")
+entity_parent = NodePath("../..")
+commands = Array[ExtResource("6_262tm")]([SubResource("Resource_move"), SubResource("Resource_stop"), SubResource("Resource_attack")])
 
 [node name="HealthComponent" type="Node3D" parent="Components" unique_id=328953229]
