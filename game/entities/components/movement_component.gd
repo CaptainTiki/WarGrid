@@ -1,6 +1,9 @@
 extends Node3D
 class_name MovementComponent
 
+const MovementQueryScript := preload("res://game/entities/movement/movement_query.gd")
+const GridPathfinderScript := preload("res://game/entities/movement/grid_pathfinder.gd")
+
 const MAX_SEPARATION_CORRECTION := 0.45
 const SEPARATION_EPSILON := 0.001
 const FOOTPRINT_SHAPE_CIRCLE := 0
@@ -26,11 +29,30 @@ func _ready() -> void:
 func set_terrain(terrain: Terrain) -> void:
 	_terrain = terrain
 
+func get_terrain() -> Terrain:
+	return _terrain
+
 func set_path(points: Array[Vector3]) -> void:
 	_path.assign(points)
 
 func clear_path() -> void:
 	_path.clear()
+
+func request_move_to(target: Vector3) -> bool:
+	if _terrain == null:
+		return false
+	var move_root := get_move_root()
+	if move_root == null:
+		return false
+	if MovementQueryScript.is_direct_route_walkable(_terrain, move_root.global_position, target):
+		var direct_path: Array[Vector3] = [target]
+		set_path(direct_path)
+		return true
+	var path: Array[Vector3] = GridPathfinderScript.find_path(_terrain, move_root.global_position, target)
+	if path.is_empty():
+		return false
+	set_path(path)
+	return true
 
 func has_path() -> bool:
 	return not _path.is_empty()

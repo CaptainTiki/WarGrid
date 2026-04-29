@@ -22,7 +22,7 @@ func execute(entity: EntityBase, context: Dictionary) -> bool:
 		stopped = true
 	var combat := entity.get_component(&"CombatComponent")
 	if combat != null and combat.has_method("clear_attack_target"):
-		combat.clear_attack_target(true)
+		combat.clear_attack_target()
 		stopped = true
 	var command_component := entity.get_component(&"CommandComponent") as CommandComponent
 	if command_component != null:

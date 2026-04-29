@@ -11,6 +11,8 @@ enum TargetSource {
 @export var attack_damage: float = 25.0
 @export var attack_cooldown: float = 1.0
 @export var attack_range: float = 0.0
+@export var pursue_stop_distance: float = 10.0
+@export var pursuit_repath_interval: float = 0.5
 @export var projectile_scene: PackedScene
 @export var auto_acquire_enabled: bool = true
 @export var acquisition_range: float = 12.0
@@ -25,6 +27,10 @@ var _scan_remaining := 0.0
 var _auto_acquire_suppression_remaining := 0.0
 var _warned_missing_entity_parent := false
 var _logged_command_target_out_of_range := false
+var _is_pursuing_attack_target := false
+var _pursuit_repath_remaining := 0.0
+var _last_pursuit_destination := Vector3.INF
+var _logged_attack_in_range := false
 
 func _ready() -> void:
 	add_to_group(&"combat_components")
@@ -42,10 +48,14 @@ func set_attack_target(target: Node, source: int) -> bool:
 	current_target = entity_target
 	target_source = clampi(source, TargetSource.NONE, TargetSource.COMMAND)
 	_logged_command_target_out_of_range = false
+	_logged_attack_in_range = false
 	_cooldown_remaining = 0.0
 	_sync_command_target(current_target)
 	var attacker := get_entity_parent()
-	if attacker != null and _is_target_in_attack_range(current_target):
+	if target_source == TargetSource.COMMAND:
+		_clear_movement_path()
+		_stop_pursuit_movement()
+	if attacker != null and is_target_in_attack_range(current_target):
 		_try_fire()
 		print("%s started attacking %s." % [_get_entity_display_name(attacker), _get_entity_display_name(current_target)])
 	return true
@@ -53,10 +63,12 @@ func set_attack_target(target: Node, source: int) -> bool:
 func clear_attack_target(suppress_auto_acquire: bool = false) -> void:
 	var attacker := get_entity_parent()
 	var had_target := current_target != null
+	_stop_pursuit_movement()
 	current_target = null
 	target_source = TargetSource.NONE
 	_cooldown_remaining = 0.0
 	_logged_command_target_out_of_range = false
+	_logged_attack_in_range = false
 	_sync_command_target(null)
 	if suppress_auto_acquire:
 		_auto_acquire_suppression_remaining = stop_auto_acquire_suppression
@@ -68,6 +80,21 @@ func get_attack_target() -> Node:
 
 func has_valid_attack_target() -> bool:
 	return _is_valid_target(current_target)
+
+func is_target_in_attack_range(target: Node) -> bool:
+	var entity_target := target as EntityBase
+	var range := attack_range if attack_range > 0.0 else acquisition_range
+	return get_distance_to_target(entity_target) <= range
+
+func get_distance_to_target(target: Node) -> float:
+	var attacker := get_entity_parent()
+	var entity_target := target as EntityBase
+	if attacker == null or entity_target == null:
+		return INF
+	return attacker.global_position.distance_to(entity_target.global_position)
+
+func should_pursue_target() -> bool:
+	return target_source == TargetSource.COMMAND and _is_valid_target(current_target)
 
 func start_attack(target: EntityBase) -> bool:
 	return set_attack_target(target, TargetSource.COMMAND)
@@ -102,16 +129,20 @@ func _tick_current_target(delta: float) -> void:
 	if not _is_valid_target(current_target):
 		clear_attack_target()
 		return
-	if not _is_target_in_attack_range(current_target):
+	if not is_target_in_attack_range(current_target):
+		_logged_attack_in_range = false
 		if target_source == TargetSource.AUTO:
 			clear_attack_target()
-		elif not _logged_command_target_out_of_range:
-			var attacker := get_entity_parent()
-			if attacker != null:
-				print("%s target out of range; pursuit not implemented yet." % _get_entity_display_name(attacker))
-			_logged_command_target_out_of_range = true
+		elif should_pursue_target():
+			_tick_pursuit(delta)
 		return
 	_logged_command_target_out_of_range = false
+	_stop_pursuit_movement()
+	if not _logged_attack_in_range:
+		var attacker := get_entity_parent()
+		if attacker != null:
+			print("%s target in range; attacking %s." % [_get_entity_display_name(attacker), _get_entity_display_name(current_target)])
+		_logged_attack_in_range = true
 	if _cooldown_remaining > 0.0:
 		_cooldown_remaining = maxf(_cooldown_remaining - delta, 0.0)
 		if _cooldown_remaining > 0.0:
@@ -145,7 +176,7 @@ func _try_fire() -> bool:
 	if not _is_valid_target(current_target):
 		clear_attack_target()
 		return false
-	if not _is_target_in_attack_range(current_target):
+	if not is_target_in_attack_range(current_target):
 		return false
 	var projectile := projectile_scene.instantiate()
 	if projectile == null:
@@ -187,6 +218,75 @@ func _is_idle_for_auto_acquire() -> bool:
 		return false
 	return true
 
+func _tick_pursuit(delta: float) -> void:
+	_cooldown_remaining = 0.0
+	_pursuit_repath_remaining = maxf(_pursuit_repath_remaining - delta, 0.0)
+	var destination := _get_pursuit_destination(current_target)
+	if _is_pursuing_attack_target and _pursuit_repath_remaining > 0.0 and _last_pursuit_destination.distance_to(destination) < 0.75:
+		return
+	var movement := _get_movement_component()
+	if movement == null:
+		return
+	if not movement.request_move_to(destination):
+		if not _logged_command_target_out_of_range:
+			var attacker := get_entity_parent()
+			if attacker != null:
+				print("%s could not find a pursuit path to %s." % [_get_entity_display_name(attacker), _get_entity_display_name(current_target)])
+			_logged_command_target_out_of_range = true
+		_is_pursuing_attack_target = false
+		return
+	_last_pursuit_destination = destination
+	_pursuit_repath_remaining = maxf(pursuit_repath_interval, 0.05)
+	if not _is_pursuing_attack_target:
+		var attacker := get_entity_parent()
+		if attacker != null:
+			print("%s pursuing %s." % [_get_entity_display_name(attacker), _get_entity_display_name(current_target)])
+	_is_pursuing_attack_target = true
+	_logged_command_target_out_of_range = true
+
+func _get_pursuit_destination(target: EntityBase) -> Vector3:
+	var attacker := get_entity_parent()
+	if attacker == null or target == null:
+		return Vector3.ZERO
+	var active_attack_range := attack_range if attack_range > 0.0 else acquisition_range
+	var stop_distance := pursue_stop_distance if pursue_stop_distance > 0.0 else active_attack_range
+	stop_distance = minf(stop_distance, active_attack_range)
+	var offset := attacker.global_position - target.global_position
+	offset.y = 0.0
+	var distance := offset.length()
+	if distance <= 0.001:
+		return target.global_position
+	var destination := target.global_position + offset / distance * minf(stop_distance, distance)
+	var movement := _get_movement_component()
+	if movement != null and movement.has_method("get_terrain"):
+		var terrain := movement.get_terrain()
+		if terrain != null:
+			var local := terrain.to_local(destination)
+			local.y = terrain.get_height_at_local_position(local)
+			return terrain.to_global(local)
+	return destination
+
+func _stop_pursuit_movement() -> void:
+	if not _is_pursuing_attack_target:
+		return
+	var movement := _get_movement_component()
+	if movement != null:
+		movement.clear_path()
+	_is_pursuing_attack_target = false
+	_pursuit_repath_remaining = 0.0
+	_last_pursuit_destination = Vector3.INF
+
+func _clear_movement_path() -> void:
+	var movement := _get_movement_component()
+	if movement != null:
+		movement.clear_path()
+
+func _get_movement_component() -> MovementComponent:
+	var attacker := get_entity_parent()
+	if attacker == null:
+		return null
+	return attacker.get_component(&"MovementComponent") as MovementComponent
+
 func _is_valid_target(target: EntityBase) -> bool:
 	var attacker := get_entity_parent()
 	if attacker == null or not is_instance_valid(attacker):
@@ -200,13 +300,6 @@ func _is_valid_target(target: EntityBase) -> bool:
 	if not target.can_be_attacked():
 		return false
 	return attacker.is_hostile_to(target)
-
-func _is_target_in_attack_range(target: EntityBase) -> bool:
-	var attacker := get_entity_parent()
-	if attacker == null or target == null:
-		return false
-	var range := attack_range if attack_range > 0.0 else acquisition_range
-	return attacker.global_position.distance_to(target.global_position) <= range
 
 func _sync_command_target(target: EntityBase) -> void:
 	var attacker := get_entity_parent()

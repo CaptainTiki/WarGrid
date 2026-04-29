@@ -59,12 +59,8 @@ func _run() -> void:
 
 	_expect(attacker.execute_command(&"stop", {}), "stop command executes")
 	_expect(combat.current_target == null, "stop clears remembered combat target")
-	var projectile_count_after_stop := get_nodes_in_group(&"combat_projectiles").size()
 	combat._physics_process(0.5)
-	_expect(get_nodes_in_group(&"combat_projectiles").size() == projectile_count_after_stop, "stop suppresses immediate auto-acquire")
-
-	combat._physics_process(1.0)
-	_expect(combat.current_target == enemy_a, "auto-acquire resumes after suppression")
+	_expect(combat.current_target == enemy_a, "auto-acquire can resume after stop")
 	enemy_a.global_position = Vector3(30.0, 0.0, 0.0)
 	combat._physics_process(0.1)
 	_expect(combat.current_target == null, "auto target clears when it leaves range")
