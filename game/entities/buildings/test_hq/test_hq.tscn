@@ -35,8 +35,9 @@ script = ExtResource("5_rally")
 
 [node name="TestHQ" type="Node3D" unique_id=469943590]
 script = ExtResource("1_hq")
-footprint_size = Vector2i(4, 4)
 display_name = "Test HQ"
+team_id = 1
+footprint_size = Vector2i(4, 4)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=880046179]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)

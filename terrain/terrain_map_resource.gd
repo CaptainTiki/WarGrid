@@ -18,3 +18,6 @@ class_name TerrainMapResource
 @export var walkable_data: PackedByteArray
 @export var buildable_data: PackedByteArray
 @export var fow_height_data: PackedByteArray
+
+# Authored scenario entity placement data
+@export var entity_placements: Array[Resource] = []

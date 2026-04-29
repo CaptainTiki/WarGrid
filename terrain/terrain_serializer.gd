@@ -17,6 +17,7 @@ static func save(map_data: TerrainMapData, path: String, map_name: String = "Aut
 	resource.walkable_data = map_data.walkable_data.duplicate()
 	resource.buildable_data = map_data.buildable_data.duplicate()
 	resource.fow_height_data = map_data.fow_height_data.duplicate()
+	resource.entity_placements = map_data.entity_placements.duplicate()
 
 	var error := ResourceSaver.save(resource, path)
 	if error == OK:
@@ -40,6 +41,7 @@ static func load(path: String) -> TerrainMapData:
 	map_data.refresh_cached_sizes()
 
 	map_data.base_heights = resource.base_heights.duplicate()
+	map_data.entity_placements = resource.entity_placements.duplicate()
 	map_data.material_ids.resize(map_data.get_total_cell_count().x * map_data.get_total_cell_count().y)
 	for i in map_data.material_ids.size():
 		map_data.material_ids[i] = TerrainMapData.GRASS_MATERIAL_ID

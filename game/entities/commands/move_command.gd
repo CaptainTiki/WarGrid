@@ -23,6 +23,7 @@ func can_execute(entity: EntityBase, context: Dictionary) -> bool:
 	return entity.get_component(&"MovementComponent") is MovementComponent
 
 func execute(entity: EntityBase, context: Dictionary) -> bool:
+	_stop_combat(entity)
 	var movement := entity.get_component(&"MovementComponent") as MovementComponent
 	if movement == null:
 		return false
@@ -46,3 +47,11 @@ func execute(entity: EntityBase, context: Dictionary) -> bool:
 	movement.set_path(path)
 	print("MoveCommand: using A* path with %d waypoints." % path.size())
 	return true
+
+func _stop_combat(entity: EntityBase) -> void:
+	var combat := entity.get_component(&"CombatComponent")
+	if combat != null and combat.has_method("clear_attack_target"):
+		combat.clear_attack_target(true)
+	var command_component := entity.get_component(&"CommandComponent") as CommandComponent
+	if command_component != null:
+		command_component.clear_current_target()

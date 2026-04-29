@@ -1,0 +1,14 @@
+extends BuildingBase
+class_name HostileDummyBuilding
+
+@onready var _selection_ring: MeshInstance3D = $SelectionRing
+
+func _ready() -> void:
+	if display_name.strip_edges() == "":
+		display_name = "Hostile Dummy"
+	add_to_group("selectable_entities")
+	add_to_group("selectable_buildings")
+	$ClickArea.add_to_group("entity_clickable")
+
+func set_selected(value: bool) -> void:
+	_selection_ring.visible = value

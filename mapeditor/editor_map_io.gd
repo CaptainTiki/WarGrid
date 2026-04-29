@@ -1,5 +1,8 @@
 class_name EditorMapIO
 
+signal map_reloaded
+signal map_created
+
 const MAX_PLAYABLE_CHUNKS := 512
 const _SAVE_PATH := "res://levels/test_map/map_data.res"
 const _SAVE_DIR  := "res://levels/test_map"
@@ -36,6 +39,7 @@ func load() -> void:
 		_camera_rig.frame_point(_terrain.get_center_position())
 		_menu_bar.set_current_playable_chunks(_terrain.playable_chunks)
 		_map_dirty = false
+		map_reloaded.emit()
 
 func request_new(playable_chunks: Vector2i) -> void:
 	_pending_chunks = Vector2i(
@@ -56,3 +60,4 @@ func _create_pending_new_map() -> void:
 	_menu_bar.set_current_playable_chunks(_terrain.playable_chunks)
 	_map_dirty = false
 	_pending_chunks = Vector2i.ZERO
+	map_created.emit()

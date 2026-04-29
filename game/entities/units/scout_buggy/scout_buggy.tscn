@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://c4tsq2irwr7ft"]
+[gd_scene load_steps=18 format=3 uid="uid://c4tsq2irwr7ft"]
 
 [ext_resource type="Script" path="res://game/entities/units/scout_buggy/scout_buggy.gd" id="1_buggy"]
 [ext_resource type="Script" path="res://game/entities/components/entity_click_area.gd" id="2_click"]
@@ -11,6 +11,8 @@
 [ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="9_cmdbase"]
 [ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="10_footprint"]
 [ext_resource type="Script" path="res://game/entities/components/health_component.gd" id="11_health"]
+[ext_resource type="Script" path="res://game/entities/components/combat_component.gd" id="12_combat"]
+[ext_resource type="PackedScene" path="res://game/entities/projectiles/basic_projectile.tscn" id="13_projectile"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_body"]
 size = Vector3(1.5, 0.55, 2.0)
@@ -42,6 +44,7 @@ script = ExtResource("8_attack_cmd")
 [node name="ScoutBuggy" type="Node3D"]
 script = ExtResource("1_buggy")
 display_name = "Scout Buggy"
+team_id = 1
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
@@ -85,6 +88,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.65, 0, 0.85)
 script = ExtResource("5_cmdcp")
 entity_parent = NodePath("../..")
 commands = Array[ExtResource("9_cmdbase")]([SubResource("Resource_move"), SubResource("Resource_stop"), SubResource("Resource_attack")])
+
+[node name="CombatComponent" type="Node" parent="Components"]
+script = ExtResource("12_combat")
+entity_parent = NodePath("../..")
+attack_damage = 25.0
+attack_cooldown = 1.0
+projectile_scene = ExtResource("13_projectile")
 
 [node name="EntityFootprintComponent" type="Node" parent="Components"]
 script = ExtResource("10_footprint")

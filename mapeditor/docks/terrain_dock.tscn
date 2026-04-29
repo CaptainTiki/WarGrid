@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=3 uid="uid://de3o2q37ubwai"]
+
+[ext_resource type="PackedScene" uid="uid://cenjxo26wplj1" path="res://mapeditor/ui/editor_tool_dock.tscn" id="1_terrain"]
+[ext_resource type="Script" path="res://mapeditor/docks/terrain_dock.gd" id="2_script"]
+
+[node name="TerrainDock" instance=ExtResource("1_terrain")]
+script = ExtResource("2_script")

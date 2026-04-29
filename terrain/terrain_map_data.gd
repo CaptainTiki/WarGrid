@@ -13,6 +13,7 @@ enum OverlayMode { NONE, WALKABLE, BUILDABLE, FOW_HEIGHT }
 @export var border_chunks := 2
 @export var cell_size := 1.0
 @export var default_height := 0.0
+@export var entity_placements: Array[Resource] = []
 
 var base_heights := PackedFloat32Array()
 var material_ids := PackedInt32Array()

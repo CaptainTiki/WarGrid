@@ -4,6 +4,7 @@ class_name SelectionComponent
 signal selection_changed(selected_entities: Array[EntityBase])
 
 var _selected_entities: Array[EntityBase] = []
+var _death_signal_callables: Dictionary = {}
 
 func select(entity: EntityBase) -> void:
 	select_single(entity)
@@ -27,10 +28,12 @@ func select_many(entities: Array[EntityBase]) -> void:
 	var changed := unique_entities.size() != _selected_entities.size()
 	for entity in _selected_entities:
 		if not unique_entities.has(entity):
+			_disconnect_entity_death_signal(entity)
 			entity.set_selected(false)
 			changed = true
 	for entity in unique_entities:
 		if not _selected_entities.has(entity):
+			_connect_entity_death_signal(entity)
 			entity.set_selected(true)
 			changed = true
 
@@ -44,6 +47,7 @@ func clear_selection() -> void:
 	if _selected_entities.is_empty():
 		return
 	for entity in _selected_entities:
+		_disconnect_entity_death_signal(entity)
 		entity.set_selected(false)
 	_selected_entities.clear()
 	_emit_selection_changed()
@@ -88,7 +92,11 @@ func get_primary_selected_entity() -> EntityBase:
 func prune_invalid_selection() -> void:
 	var changed := false
 	for i in range(_selected_entities.size() - 1, -1, -1):
-		if not is_instance_valid(_selected_entities[i]) or _selected_entities[i] == null:
+		var entity := _selected_entities[i]
+		if not is_instance_valid(entity) or entity == null or not entity.is_alive():
+			if is_instance_valid(entity) and entity != null:
+				_disconnect_entity_death_signal(entity)
+				entity.set_selected(false)
 			_selected_entities.remove_at(i)
 			changed = true
 	if changed:
@@ -100,3 +108,36 @@ func _emit_selection_changed() -> void:
 		if is_instance_valid(entity) and entity != null:
 			selected_entities.append(entity)
 	selection_changed.emit(selected_entities)
+
+func _connect_entity_death_signal(entity: EntityBase) -> void:
+	var health := entity.get_health_component()
+	if health == null or not health.has_signal("died"):
+		return
+	var key := entity.get_instance_id()
+	if _death_signal_callables.has(key):
+		return
+	var callable := _on_selected_entity_died.bind(entity)
+	_death_signal_callables[key] = callable
+	health.died.connect(callable)
+
+func _disconnect_entity_death_signal(entity: EntityBase) -> void:
+	if not is_instance_valid(entity) or entity == null:
+		return
+	var health := entity.get_health_component()
+	if health == null or not health.has_signal("died"):
+		return
+	var key := entity.get_instance_id()
+	if not _death_signal_callables.has(key):
+		return
+	var callable: Callable = _death_signal_callables[key]
+	if health.died.is_connected(callable):
+		health.died.disconnect(callable)
+	_death_signal_callables.erase(key)
+
+func _on_selected_entity_died(entity: EntityBase) -> void:
+	if entity == null or not _selected_entities.has(entity):
+		return
+	_disconnect_entity_death_signal(entity)
+	entity.set_selected(false)
+	_selected_entities.erase(entity)
+	_emit_selection_changed()

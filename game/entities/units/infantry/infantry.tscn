@@ -11,6 +11,8 @@
 [ext_resource type="Script" path="res://game/entities/commands/attack_command.gd" id="7_attack"]
 [ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="8_footprint"]
 [ext_resource type="Script" path="res://game/entities/components/health_component.gd" id="9_health"]
+[ext_resource type="Script" path="res://game/entities/components/combat_component.gd" id="10_combat"]
+[ext_resource type="PackedScene" path="res://game/entities/projectiles/basic_projectile.tscn" id="11_projectile"]
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_1u67m"]
 radius = 0.25
@@ -40,6 +42,7 @@ script = ExtResource("7_attack")
 
 [node name="Infantry" type="Node3D" unique_id=330935211]
 script = ExtResource("1_6o1ch")
+team_id = 1
 
 [node name="Mesh" type="Node3D" parent="." unique_id=713299477]
 
@@ -73,6 +76,13 @@ move_root_path = NodePath("../..")
 script = ExtResource("4_cmdcp")
 entity_parent = NodePath("../..")
 commands = Array[ExtResource("6_262tm")]([SubResource("Resource_move"), SubResource("Resource_stop"), SubResource("Resource_attack")])
+
+[node name="CombatComponent" type="Node" parent="Components"]
+script = ExtResource("10_combat")
+entity_parent = NodePath("../..")
+attack_damage = 25.0
+attack_cooldown = 1.0
+projectile_scene = ExtResource("11_projectile")
 
 [node name="EntityFootprintComponent" type="Node" parent="Components"]
 script = ExtResource("8_footprint")

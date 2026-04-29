@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bdn36vbwtpwki"]
 
 [ext_resource type="Script" uid="uid://bs7ukrjq2ffy8" path="res://game/entities/units/scout_bike/scout_bike.gd" id="1_bike"]
-[ext_resource type="Script" path="res://game/entities/components/entity_click_area.gd" id="2_click"]
+[ext_resource type="Script" uid="uid://08ox50b0nels" path="res://game/entities/components/entity_click_area.gd" id="2_click"]
 [ext_resource type="Script" uid="uid://d15krtaegpub7" path="res://game/entities/components/movement_component.gd" id="3_move"]
 [ext_resource type="PackedScene" path="res://game/entities/components/terrain_finder.tscn" id="4_finder"]
 [ext_resource type="Script" uid="uid://cvq6nkaf1n2bo" path="res://game/entities/components/command_component.gd" id="5_cmdcp"]
@@ -9,8 +9,10 @@
 [ext_resource type="Script" uid="uid://dsiou4slrk0pu" path="res://game/entities/commands/stop_command.gd" id="7_stop_cmd"]
 [ext_resource type="Script" uid="uid://dld6f02n3qv4m" path="res://game/entities/commands/attack_command.gd" id="8_attack_cmd"]
 [ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="9_cmdbase"]
-[ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="10_footprint"]
-[ext_resource type="Script" path="res://game/entities/components/health_component.gd" id="11_health"]
+[ext_resource type="Script" uid="uid://ddvbousdg1utu" path="res://game/entities/components/entity_footprint_component.gd" id="10_footprint"]
+[ext_resource type="Script" uid="uid://dmrv07eoqwskn" path="res://game/entities/components/health_component.gd" id="11_health"]
+[ext_resource type="Script" uid="uid://cja7jwxph5yb8" path="res://game/entities/components/combat_component.gd" id="12_combat"]
+[ext_resource type="PackedScene" path="res://game/entities/projectiles/basic_projectile.tscn" id="13_projectile"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_body"]
 size = Vector3(0.5, 0.35, 1.4)
@@ -42,6 +44,7 @@ script = ExtResource("8_attack_cmd")
 [node name="ScoutBike" type="Node3D" unique_id=315850351]
 script = ExtResource("1_bike")
 display_name = "Scout Bike"
+team_id = 1
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1119315374]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
@@ -80,12 +83,17 @@ script = ExtResource("5_cmdcp")
 entity_parent = NodePath("../..")
 commands = Array[ExtResource("9_cmdbase")]([SubResource("Resource_move"), SubResource("Resource_stop"), SubResource("Resource_attack")])
 
-[node name="EntityFootprintComponent" type="Node" parent="Components"]
+[node name="CombatComponent" type="Node" parent="Components" unique_id=1000285229]
+script = ExtResource("12_combat")
+entity_parent = NodePath("../..")
+projectile_scene = ExtResource("13_projectile")
+
+[node name="EntityFootprintComponent" type="Node" parent="Components" unique_id=348344794]
 script = ExtResource("10_footprint")
 entity_parent = NodePath("../..")
 radius = 0.6
 
-[node name="HealthComponent" type="Node" parent="Components"]
+[node name="HealthComponent" type="Node" parent="Components" unique_id=483813814]
 script = ExtResource("11_health")
 entity_parent = NodePath("../..")
 max_health = 120.0

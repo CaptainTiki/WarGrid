@@ -1,15 +1,17 @@
 extends Node3D
 class_name Level
 
+const EntityCatalogScript := preload("res://game/entities/catalog/entity_catalog.gd")
+const EntityPlacementDataScript := preload("res://game/entities/placement/entity_placement_data.gd")
+
 @onready var terrain: Terrain = $Terrain
 @onready var camera_rig: PlayerCameraRig = $PlayerCameraRig
-@onready var _infantry: Infantry = $Infantry
-@onready var _scout_bike: EntityBase = $ScoutBike
-@onready var _scout_buggy: EntityBase = $ScoutBuggy
-@onready var _test_hq: EntityBase = $TestHQ
+@onready var _entities_root: Node3D = $Entities
 @onready var _selection: SelectionComponent = $Components/SelectionComponent
 @onready var _input: InputComponent = $Components/InputComponent
 @onready var _command_panel: Node = $UI/CommandPanel
+
+var _entity_catalog := EntityCatalogScript.new()
 
 func _ready() -> void:
 	_ensure_light()
@@ -29,19 +31,50 @@ func load_map(path: String) -> bool:
 	return true
 
 func _setup_entities() -> void:
-	_infantry.set_terrain(terrain)
-	_scout_bike.set_terrain(terrain)
-	_scout_buggy.set_terrain(terrain)
 	_input.setup(terrain, camera_rig, _selection, $UI/SelectionRect)
-	var center: Vector3 = terrain.get_center_position()
-	_place_entity_on_terrain(_infantry, center + Vector3(5.0, 0.0, 0.0))
-	_place_entity_on_terrain(_scout_bike, center + Vector3(5.0, 0.0, 5.0))
-	_place_entity_on_terrain(_scout_buggy, center + Vector3(5.0, 0.0, -5.0))
-	_place_entity_on_terrain(_test_hq, center + Vector3(-7.0, 0.0, 0.0))
+	_clear_spawned_entities()
+	_spawn_map_entities()
 
-func _place_entity_on_terrain(entity: EntityBase, local_position: Vector3) -> void:
-	var height: float = terrain.get_height_at_local_position(local_position)
-	entity.global_position = terrain.to_global(Vector3(local_position.x, height, local_position.z))
+func _spawn_map_entities() -> void:
+	if terrain.map_data == null:
+		return
+	print("Spawning %d map entities..." % terrain.map_data.entity_placements.size())
+	for placement in terrain.map_data.entity_placements:
+		if placement == null:
+			continue
+		var entity := _entity_catalog.spawn_entity(placement.entity_id)
+		if entity == null:
+			push_warning("Unknown entity_id in map placement: %s; skipped." % placement.entity_id)
+			continue
+		if "team_id" in entity:
+			entity.team_id = placement.team_id
+		_entities_root.add_child(entity)
+		if entity is Node3D:
+			var entity_3d := entity as Node3D
+			entity_3d.global_position = terrain.to_global(placement.position)
+			entity_3d.rotation.y = placement.rotation_y
+		if entity.has_method("set_terrain"):
+			entity.set_terrain(terrain)
+		_apply_health_spawn_mode(entity, placement)
+		print("Spawned %s at %s for team %d." % [placement.entity_id, placement.position, placement.team_id])
+
+func _apply_health_spawn_mode(entity: Node, placement: Resource) -> void:
+	if entity == null or not entity.has_method("get_health_component"):
+		return
+	var health := entity.get_health_component() as HealthComponent
+	if health == null:
+		return
+	match placement.health_spawn_mode:
+		EntityPlacementDataScript.HealthSpawnMode.FULL:
+			health.set_current_health(health.max_health)
+		EntityPlacementDataScript.HealthSpawnMode.PERCENT:
+			health.set_current_health(health.max_health * clampf(placement.health_value, 0.0, 1.0))
+		EntityPlacementDataScript.HealthSpawnMode.CURRENT_VALUE:
+			health.set_current_health(clampf(placement.health_value, 0.0, health.max_health))
+
+func _clear_spawned_entities() -> void:
+	for child in _entities_root.get_children():
+		child.free()
 
 func _ensure_light() -> void:
 	if has_node("Sun"):

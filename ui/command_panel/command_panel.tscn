@@ -7,7 +7,7 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 12.0
-offset_top = -190.0
+offset_top = -260.0
 offset_right = 284.0
 offset_bottom = -12.0
 mouse_filter = 0
@@ -22,15 +22,38 @@ theme_override_constants/margin_bottom = 8
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
+theme_override_constants/separation = 4
 
 [node name="SelectedEntityLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "No selection"
 
+[node name="SelectionCountLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Selected: 0"
+
+[node name="TeamLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Team: Unknown"
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Status: Unknown"
+
 [node name="HealthLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 visible = false
 layout_mode = 2
-text = "Health: 100 / 100"
+text = "HP: 100 / 100"
 
-[node name="CommandList" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="CommandScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 112)
 layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="CommandList" type="VBoxContainer" parent="MarginContainer/VBoxContainer/CommandScroll"]
+layout_mode = 2
+size_flags_horizontal = 3

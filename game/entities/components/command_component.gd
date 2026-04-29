@@ -4,7 +4,11 @@ class_name CommandComponent
 @export_node_path("Node3D") var entity_parent: NodePath
 @export var commands: Array[CommandBase] = []
 
+var current_target: EntityBase = null
 var _warned_missing_entity_parent := false
+
+func _ready() -> void:
+	add_to_group(&"command_components")
 
 func get_entity_parent() -> EntityBase:
 	var entity := get_node_or_null(entity_parent) as EntityBase
@@ -32,6 +36,16 @@ func execute_command(command_id: StringName, entity: EntityBase, context: Dictio
 	if not command.can_execute(entity, context):
 		return false
 	return command.execute(entity, context)
+
+func set_current_target(target: EntityBase) -> void:
+	current_target = target
+
+func clear_current_target() -> void:
+	current_target = null
+
+func clear_current_target_if_matches(target: EntityBase) -> void:
+	if current_target == target:
+		current_target = null
 
 func _get_command(command_id: StringName) -> CommandBase:
 	for command in commands:

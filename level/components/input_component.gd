@@ -2,6 +2,7 @@ extends Node
 class_name InputComponent
 
 const DRAG_THRESHOLD := 8.0
+const PLAYER_TEAM_ID := 1
 
 var _terrain: Terrain = null
 var _camera_rig: PlayerCameraRig = null
@@ -70,13 +71,29 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _handle_left_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	var entity := _raycast_entity(camera, screen_pos)
+	var additive := Input.is_key_pressed(KEY_SHIFT)
 	if entity != null:
-		_selection.select_single(entity)
-	else:
+		if additive:
+			if _selection.is_selected(entity):
+				_selection.remove_from_selection(entity)
+			else:
+				_selection.add_to_selection(entity)
+		else:
+			_selection.select_single(entity)
+	elif not additive:
 		_selection.clear_selection()
 
 func _handle_right_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	if not _selection.has_selection():
+		return
+	var commandable_selection := _get_commandable_selection(_selection.get_selected_entities())
+	if commandable_selection.is_empty():
+		print("No commandable selected entities; command ignored.")
+		return
+
+	var target_entity := _raycast_entity(camera, screen_pos)
+	if target_entity != null:
+		_handle_right_click_entity_target(commandable_selection, target_entity)
 		return
 
 	var terrain_local = _terrain.get_pick_point(camera, screen_pos)
@@ -87,7 +104,7 @@ func _handle_right_click(camera: Camera3D, screen_pos: Vector2) -> void:
 	if not _terrain.is_ground_walkable_at_local_position(local_pos):
 		return
 
-	_execute_move_command_on_entities(_selection.get_selected_entities(), _terrain.to_global(local_pos))
+	_execute_move_command_on_entities(commandable_selection, _terrain.to_global(local_pos))
 
 func _begin_left_mouse(screen_pos: Vector2) -> void:
 	_left_mouse_down = true
@@ -171,6 +188,10 @@ func _execute_entity_target_command(camera: Camera3D, screen_pos: Vector2) -> vo
 	var target_entity := _raycast_entity(camera, screen_pos)
 	if target_entity == null:
 		return
+	if _target_command_id == &"attack" and not _can_any_source_attack_target(_target_source_entities, target_entity):
+		_print_attack_target_rejection(target_entity)
+		_cancel_targeting()
+		return
 	_execute_command_on_entities(_target_source_entities, _target_command_id, {
 		"target_entity": target_entity,
 	})
@@ -187,18 +208,20 @@ func _cancel_targeting() -> void:
 func _get_entities_with_command(entities: Array[EntityBase], command_id: StringName) -> Array[EntityBase]:
 	var valid_entities: Array[EntityBase] = []
 	for entity in entities:
-		if is_instance_valid(entity) and entity != null and entity.has_command(command_id):
+		if _is_commandable_by_player(entity) and entity.has_command(command_id):
 			valid_entities.append(entity)
 	return valid_entities
 
 func _execute_command_on_entities(entities: Array[EntityBase], command_id: StringName, context: Dictionary) -> int:
 	var success_count := 0
+	var attempted_count := 0
 	for entity in entities:
 		if not is_instance_valid(entity) or entity == null or not entity.has_command(command_id):
 			continue
+		attempted_count += 1
 		if entity.execute_command(command_id, context):
 			success_count += 1
-	print("Command %s executed on %d entities." % [command_id, success_count])
+	print("Command %s succeeded on %d/%d commandable entities." % [command_id, success_count, attempted_count])
 	return success_count
 
 func _execute_move_command_on_entities(entities: Array[EntityBase], target_position: Vector3) -> int:
@@ -217,9 +240,11 @@ func _execute_move_command_on_entities(entities: Array[EntityBase], target_posit
 	center /= movable_entities.size()
 
 	var success_count := 0
+	var attempted_count := 0
 	for entity in movable_entities:
 		if not is_instance_valid(entity):
 			continue
+		attempted_count += 1
 		var offset := entity.global_position - center
 		offset.y = 0.0
 		var assigned_target := _snap_world_position_to_terrain(target_position + offset)
@@ -228,8 +253,56 @@ func _execute_move_command_on_entities(entities: Array[EntityBase], target_posit
 			"terrain": _terrain,
 		}):
 			success_count += 1
-	print("Command move executed on %d entities." % success_count)
+	print("Command move succeeded on %d/%d commandable entities." % [success_count, attempted_count])
 	return success_count
+
+func _handle_right_click_entity_target(commandable_entities: Array[EntityBase], target_entity: EntityBase) -> void:
+	if _can_any_source_attack_target(commandable_entities, target_entity):
+		_execute_command_on_entities(commandable_entities, &"attack", {
+			"target_entity": target_entity,
+		})
+		return
+	_print_attack_target_rejection(target_entity)
+
+func _can_any_source_attack_target(source_entities: Array[EntityBase], target_entity: EntityBase) -> bool:
+	if target_entity == null or not is_instance_valid(target_entity) or not target_entity.can_be_attacked():
+		return false
+	for source in source_entities:
+		if not is_instance_valid(source) or source == null or not source.has_command(&"attack"):
+			continue
+		if source.is_hostile_to(target_entity):
+			return true
+	return false
+
+func _get_commandable_selection(entities: Array[EntityBase]) -> Array[EntityBase]:
+	var commandable_entities: Array[EntityBase] = []
+	for entity in entities:
+		if _is_commandable_by_player(entity):
+			commandable_entities.append(entity)
+	return commandable_entities
+
+func _is_commandable_by_player(entity: EntityBase) -> bool:
+	if entity == null or not is_instance_valid(entity):
+		return false
+	if entity.has_method("is_alive") and not entity.is_alive():
+		return false
+	return entity.has_method("get_team_id") and entity.get_team_id() == PLAYER_TEAM_ID and not entity.get_available_commands().is_empty()
+
+func _print_attack_target_rejection(target_entity: EntityBase) -> void:
+	if target_entity == null or not is_instance_valid(target_entity):
+		print("Right-click target is invalid; no command issued.")
+		return
+	if not target_entity.can_be_attacked():
+		print("Right-click target is not attackable; no command issued.")
+		return
+	var selected_entities := _selection.get_selected_entities()
+	var source := selected_entities[0] if not selected_entities.is_empty() else null
+	if source != null and is_instance_valid(source) and source.is_same_team(target_entity):
+		print("Right-click target is friendly; no command issued.")
+	elif target_entity.get_team_id() == 0:
+		print("Right-click target is neutral; no command issued.")
+	else:
+		print("Right-click target is not hostile; no command issued.")
 
 func _snap_world_position_to_terrain(world_position: Vector3) -> Vector3:
 	if _terrain == null:
