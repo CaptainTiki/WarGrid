@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ProductionRecipe" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/production/production_recipe.gd" id="1_recipe"]
+
+[resource]
+script = ExtResource("1_recipe")
+id = &"train_infantry"
+display_name = "Train Infantry"
+produced_entity_id = &"infantry"
+build_time = 3.0
+costs = {
+&"ore": 50
+}
+description = "Train a basic infantry unit."
+category = &"unit"

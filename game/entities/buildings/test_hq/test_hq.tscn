@@ -8,6 +8,8 @@
 [ext_resource type="Script" uid="uid://27fcg55aje0j" path="res://game/entities/commands/command_base.gd" id="6_cmdbase"]
 [ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="7_footprint"]
 [ext_resource type="Script" path="res://game/entities/components/health_component.gd" id="8_health"]
+[ext_resource type="Script" path="res://game/production/production_component.gd" id="9_prod"]
+[ext_resource type="Resource" path="res://game/production/recipes/train_infantry.tres" id="10_train_recipe"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_hq"]
 size = Vector3(4, 2, 4)
@@ -64,6 +66,13 @@ shape = SubResource("BoxShape_click")
 script = ExtResource("3_cmdcp")
 entity_parent = NodePath("../..")
 commands = Array[ExtResource("6_cmdbase")]([SubResource("Resource_train"), SubResource("Resource_rally")])
+
+[node name="ProductionComponent" type="Node" parent="Components"]
+script = ExtResource("9_prod")
+entity_parent = NodePath("../..")
+available_recipes = [ExtResource("10_train_recipe")]
+queue_limit = 5
+spawn_offset = Vector3(3, 0, 0)
 
 [node name="EntityFootprintComponent" type="Node" parent="Components"]
 script = ExtResource("7_footprint")

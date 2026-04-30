@@ -11,6 +11,7 @@ const PLAYER_TEAM_ID := 1
 @onready var _team_label: Label = $MarginContainer/VBoxContainer/TeamLabel
 @onready var _status_label: Label = $MarginContainer/VBoxContainer/StatusLabel
 @onready var _health_label: Label = $MarginContainer/VBoxContainer/HealthLabel
+@onready var _resource_label: Label = $MarginContainer/VBoxContainer/ResourceLabel
 @onready var _command_list: VBoxContainer = $MarginContainer/VBoxContainer/CommandScroll/CommandList
 
 var _selected_entity: EntityBase = null
@@ -25,6 +26,8 @@ func _ready() -> void:
 	_button_texture = _make_button_texture(Color(0.18, 0.22, 0.26, 1.0))
 	_button_hover_texture = _make_button_texture(Color(0.25, 0.31, 0.37, 1.0))
 	_button_pressed_texture = _make_button_texture(Color(0.11, 0.15, 0.19, 1.0))
+	_connect_resource_wallet()
+	_update_resource_label()
 	set_selected_entities([])
 
 func set_selected_entity(entity: EntityBase) -> void:
@@ -222,6 +225,21 @@ func _disconnect_health_label() -> void:
 
 func _on_selected_health_changed(current_health: float, max_health: float) -> void:
 	_health_label.text = "HP: %.0f / %.0f" % [current_health, max_health]
+
+func _connect_resource_wallet() -> void:
+	var wallet := get_node_or_null("/root/ResourceManager")
+	if wallet == null:
+		return
+	if wallet.has_signal("resources_changed") and not wallet.resources_changed.is_connected(_update_resource_label):
+		wallet.resources_changed.connect(_update_resource_label)
+
+func _update_resource_label() -> void:
+	var wallet := get_node_or_null("/root/ResourceManager")
+	if wallet == null or not wallet.has_method("get_amount"):
+		_resource_label.visible = false
+		return
+	_resource_label.visible = true
+	_resource_label.text = "Ore: %d" % wallet.get_amount(&"ore")
 
 func _get_entity_display_name(entity: EntityBase) -> String:
 	if entity.display_name.strip_edges() != "":

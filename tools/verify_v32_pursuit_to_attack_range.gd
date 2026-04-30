@@ -40,7 +40,7 @@ func _run() -> void:
 		_verify_stop_cancels_pursuit(infantry, enemy)
 		_verify_move_overrides_pursuit(infantry, enemy, level.terrain)
 		_verify_attack_replaces_target(infantry, enemy, enemy_hq)
-		_verify_auto_acquire_does_not_chase(infantry, enemy)
+		_verify_auto_acquire_pursues_within_leash(infantry, enemy)
 		_verify_dead_target_clears_pursuit(infantry, enemy)
 
 	level.free()
@@ -115,7 +115,7 @@ func _verify_attack_replaces_target(infantry: EntityBase, enemy: EntityBase, ene
 	_expect(combat.current_target == enemy_hq, "attack command replaces pursuit target")
 	_expect(combat.target_source == CombatComponent.TargetSource.COMMAND, "replacement target remains command-sourced")
 
-func _verify_auto_acquire_does_not_chase(infantry: EntityBase, enemy: EntityBase) -> void:
+func _verify_auto_acquire_pursues_within_leash(infantry: EntityBase, enemy: EntityBase) -> void:
 	_reset_entity(infantry, Vector3(128.0, 0.0, 128.0))
 	_reset_entity(enemy, Vector3(132.0, 0.0, 128.0))
 	var combat := infantry.get_component(&"CombatComponent") as CombatComponent
@@ -124,10 +124,10 @@ func _verify_auto_acquire_does_not_chase(infantry: EntityBase, enemy: EntityBase
 	combat._physics_process(0.25)
 	_expect(combat.current_target == enemy, "idle unit auto-acquires hostile in range")
 	_expect(combat.target_source == CombatComponent.TargetSource.AUTO, "auto target source is AUTO")
-	enemy.global_position = Vector3(148.0, 0.0, 128.0)
+	enemy.global_position = Vector3(136.5, 0.0, 128.0)
 	combat._physics_process(0.25)
-	_expect(combat.current_target == null, "auto target clears after leaving range")
-	_expect(not movement.has_path(), "auto target does not start pursuit")
+	_expect(combat.current_target == enemy, "auto target remains while inside leash")
+	_expect(movement.has_path(), "auto target starts local pursuit inside leash")
 
 func _verify_dead_target_clears_pursuit(infantry: EntityBase, enemy: EntityBase) -> void:
 	_reset_entity(infantry, Vector3(128.0, 0.0, 128.0))
@@ -173,6 +173,7 @@ func _configure_combat(entity: EntityBase) -> void:
 	combat.acquisition_range = 6.0
 	combat.pursue_stop_distance = 5.0
 	combat.pursuit_repath_interval = 0.25
+	combat.leash_range = 20.0
 	combat.scan_interval = 0.1
 
 func _make_level(placements: Array) -> Level:

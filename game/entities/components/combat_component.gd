@@ -16,11 +16,14 @@ enum TargetSource {
 @export var projectile_scene: PackedScene
 @export var auto_acquire_enabled: bool = true
 @export var acquisition_range: float = 12.0
+@export var leash_range: float = 20.0
+@export var return_to_home_on_leash_break: bool = true
 @export var scan_interval: float = 0.25
 @export var stop_auto_acquire_suppression: float = 1.25
 
 var current_target: EntityBase = null
 var target_source := TargetSource.NONE
+var home_position := Vector3.ZERO
 
 var _cooldown_remaining := 0.0
 var _scan_remaining := 0.0
@@ -31,6 +34,8 @@ var _is_pursuing_attack_target := false
 var _pursuit_repath_remaining := 0.0
 var _last_pursuit_destination := Vector3.INF
 var _logged_attack_in_range := false
+var _home_position_initialized := false
+var _returning_home := false
 
 func _ready() -> void:
 	add_to_group(&"combat_components")
@@ -45,6 +50,7 @@ func set_attack_target(target: Node, source: int) -> bool:
 		return false
 	if projectile_scene == null:
 		return false
+	_ensure_home_position()
 	current_target = entity_target
 	target_source = clampi(source, TargetSource.NONE, TargetSource.COMMAND)
 	_logged_command_target_out_of_range = false
@@ -53,6 +59,7 @@ func set_attack_target(target: Node, source: int) -> bool:
 	_sync_command_target(current_target)
 	var attacker := get_entity_parent()
 	if target_source == TargetSource.COMMAND:
+		_cancel_return_home()
 		_clear_movement_path()
 		_stop_pursuit_movement()
 	if attacker != null and is_target_in_attack_range(current_target):
@@ -64,6 +71,7 @@ func clear_attack_target(suppress_auto_acquire: bool = false) -> void:
 	var attacker := get_entity_parent()
 	var had_target := current_target != null
 	_stop_pursuit_movement()
+	_cancel_return_home()
 	current_target = null
 	target_source = TargetSource.NONE
 	_cooldown_remaining = 0.0
@@ -94,7 +102,31 @@ func get_distance_to_target(target: Node) -> float:
 	return attacker.global_position.distance_to(entity_target.global_position)
 
 func should_pursue_target() -> bool:
-	return target_source == TargetSource.COMMAND and _is_valid_target(current_target)
+	return _is_valid_target(current_target) and (target_source == TargetSource.COMMAND or (target_source == TargetSource.AUTO and is_target_within_leash(current_target)))
+
+func set_home_position(world_position: Vector3) -> void:
+	home_position = world_position
+	_home_position_initialized = true
+	_cancel_return_home()
+
+func is_within_leash_position(world_pos: Vector3) -> bool:
+	_ensure_home_position()
+	if leash_range <= 0.0:
+		return true
+	return home_position.distance_to(world_pos) <= leash_range
+
+func is_target_within_leash(target: Node) -> bool:
+	var entity_target := target as EntityBase
+	if entity_target == null:
+		return false
+	return is_within_leash_position(entity_target.global_position)
+
+func get_distance_from_home_to_target(target: Node) -> float:
+	_ensure_home_position()
+	var entity_target := target as EntityBase
+	if entity_target == null:
+		return INF
+	return home_position.distance_to(entity_target.global_position)
 
 func start_attack(target: EntityBase) -> bool:
 	return set_attack_target(target, TargetSource.COMMAND)
@@ -104,7 +136,10 @@ func stop_attack() -> void:
 
 func clear_current_target_if_matches(target: EntityBase) -> void:
 	if current_target == target:
+		var should_return_home := target_source == TargetSource.AUTO
 		clear_attack_target()
+		if should_return_home:
+			_return_home()
 
 func has_valid_target() -> bool:
 	return has_valid_attack_target()
@@ -119,20 +154,30 @@ func get_entity_parent() -> EntityBase:
 	return null
 
 func _physics_process(delta: float) -> void:
+	_ensure_home_position()
 	_auto_acquire_suppression_remaining = maxf(_auto_acquire_suppression_remaining - delta, 0.0)
 	if current_target != null:
 		_tick_current_target(delta)
+		return
+	if _returning_home:
+		_tick_return_home()
 		return
 	_tick_auto_acquire(delta)
 
 func _tick_current_target(delta: float) -> void:
 	if not _is_valid_target(current_target):
+		var should_return_home := target_source == TargetSource.AUTO
 		clear_attack_target()
+		if should_return_home:
+			_return_home()
 		return
 	if not is_target_in_attack_range(current_target):
 		_logged_attack_in_range = false
 		if target_source == TargetSource.AUTO:
-			clear_attack_target()
+			if is_target_within_leash(current_target):
+				_tick_pursuit(delta)
+			else:
+				_break_auto_leash()
 		elif should_pursue_target():
 			_tick_pursuit(delta)
 		return
@@ -203,6 +248,8 @@ func _find_auto_acquire_target() -> EntityBase:
 		var target := node as EntityBase
 		if not _is_valid_target(target):
 			continue
+		if not is_target_within_leash(target):
+			continue
 		var distance := attacker.global_position.distance_to(target.global_position)
 		if distance <= best_distance:
 			best_distance = distance
@@ -220,6 +267,7 @@ func _is_idle_for_auto_acquire() -> bool:
 
 func _tick_pursuit(delta: float) -> void:
 	_cooldown_remaining = 0.0
+	_returning_home = false
 	_pursuit_repath_remaining = maxf(_pursuit_repath_remaining - delta, 0.0)
 	var destination := _get_pursuit_destination(current_target)
 	if _is_pursuing_attack_target and _pursuit_repath_remaining > 0.0 and _last_pursuit_destination.distance_to(destination) < 0.75:
@@ -234,13 +282,17 @@ func _tick_pursuit(delta: float) -> void:
 				print("%s could not find a pursuit path to %s." % [_get_entity_display_name(attacker), _get_entity_display_name(current_target)])
 			_logged_command_target_out_of_range = true
 		_is_pursuing_attack_target = false
+		if target_source == TargetSource.AUTO:
+			clear_attack_target()
+			_return_home()
 		return
 	_last_pursuit_destination = destination
 	_pursuit_repath_remaining = maxf(pursuit_repath_interval, 0.05)
 	if not _is_pursuing_attack_target:
 		var attacker := get_entity_parent()
 		if attacker != null:
-			print("%s pursuing %s." % [_get_entity_display_name(attacker), _get_entity_display_name(current_target)])
+			var leash_text := " within leash" if target_source == TargetSource.AUTO else ""
+			print("%s pursuing %s%s." % [_get_entity_display_name(attacker), _get_entity_display_name(current_target), leash_text])
 	_is_pursuing_attack_target = true
 	_logged_command_target_out_of_range = true
 
@@ -280,6 +332,49 @@ func _clear_movement_path() -> void:
 	var movement := _get_movement_component()
 	if movement != null:
 		movement.clear_path()
+
+func _break_auto_leash() -> void:
+	var attacker := get_entity_parent()
+	if attacker != null:
+		print("%s leash broken; clearing target." % _get_entity_display_name(attacker))
+	clear_attack_target()
+	_return_home()
+
+func _return_home() -> void:
+	if not return_to_home_on_leash_break:
+		return
+	var movement := _get_movement_component()
+	var attacker := get_entity_parent()
+	if movement == null or attacker == null:
+		return
+	if attacker.global_position.distance_to(home_position) <= 0.25:
+		return
+	if movement.request_move_to(home_position):
+		_returning_home = true
+		print("%s returning to home position." % _get_entity_display_name(attacker))
+
+func _tick_return_home() -> void:
+	var attacker := get_entity_parent()
+	var movement := _get_movement_component()
+	if attacker == null or movement == null:
+		_returning_home = false
+		return
+	if attacker.global_position.distance_to(home_position) <= 0.25 or not movement.has_path():
+		_returning_home = false
+		movement.clear_path()
+		print("%s reached home position." % _get_entity_display_name(attacker))
+
+func _cancel_return_home() -> void:
+	_returning_home = false
+
+func _ensure_home_position() -> void:
+	if _home_position_initialized:
+		return
+	var attacker := get_entity_parent()
+	if attacker == null:
+		return
+	home_position = attacker.global_position
+	_home_position_initialized = true
 
 func _get_movement_component() -> MovementComponent:
 	var attacker := get_entity_parent()

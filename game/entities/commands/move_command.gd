@@ -35,6 +35,9 @@ func execute(entity: EntityBase, context: Dictionary) -> bool:
 	if not movement.request_move_to(target):
 		print("MoveCommand failed: no path found.")
 		return false
+	var combat := entity.get_component(&"CombatComponent")
+	if combat != null and combat.has_method("set_home_position"):
+		combat.set_home_position(target)
 	print("MoveCommand: move requested.")
 	return true
 
