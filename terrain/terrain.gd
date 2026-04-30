@@ -17,6 +17,7 @@ const TerrainChunkScene := preload("res://terrain/terrain_chunk.tscn")
 @export var rebuild_colliders_during_stroke := false
 
 var map_data: TerrainMapData
+var runtime_state: RuntimeMapState = null
 var chunks := {}
 
 var _chunk_root: Node3D
@@ -267,6 +268,21 @@ func get_walkable_at_local_position(local_position: Vector3) -> int:
 
 func is_ground_walkable_at_local_position(local_position: Vector3) -> bool:
 	return get_walkable_at_local_position(local_position) == TerrainMapData.Walkable.ALL
+
+func is_effectively_ground_walkable_at_local_position(local_position: Vector3) -> bool:
+	if runtime_state == null:
+		return is_ground_walkable_at_local_position(local_position)
+	return runtime_state.is_cell_effectively_walkable(get_visual_cell_from_local_position(local_position))
+
+func is_effectively_ground_walkable_at_world_position(world_position: Vector3) -> bool:
+	return is_effectively_ground_walkable_at_local_position(to_local(world_position))
+
+func is_effectively_buildable_at_local_position(local_position: Vector3) -> bool:
+	if runtime_state == null:
+		if map_data == null:
+			return false
+		return map_data.get_buildable_value_for_visual_cell(get_visual_cell_from_local_position(local_position)) == TerrainMapData.Buildable.OPEN
+	return runtime_state.is_cell_effectively_buildable(get_visual_cell_from_local_position(local_position))
 
 func get_pathfinding_bounds(cell_size_override: float = cell_size) -> Rect2i:
 	if map_data == null:

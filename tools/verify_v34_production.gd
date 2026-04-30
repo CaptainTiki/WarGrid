@@ -30,11 +30,12 @@ func _run() -> void:
 	_expect(wallet != null, "ResourceManager autoload exists")
 	if wallet != null:
 		wallet.reset_to_starting_resources()
-		_expect(wallet.get_amount(&"ore") == 500, "starting ore is 500")
-		_expect(wallet.can_afford({&"ore": 50}), "wallet can afford infantry")
-		_expect(wallet.spend({&"ore": 50}), "wallet spends ore")
-		_expect(wallet.get_amount(&"ore") == 450, "ore decreases after spend")
-		_expect(not wallet.can_afford({&"ore": 999}), "wallet detects insufficient resources")
+		_expect(wallet.get_amount(&"crystals") == 500, "starting crystals is 500")
+		_expect(wallet.get_amount(&"he3") == 0, "starting he3 is 0")
+		_expect(wallet.can_afford({&"crystals": 50}), "wallet can afford infantry")
+		_expect(wallet.spend({&"crystals": 50}), "wallet spends crystals")
+		_expect(wallet.get_amount(&"crystals") == 450, "crystals decreases after spend")
+		_expect(not wallet.can_afford({&"crystals": 999}), "wallet detects insufficient resources")
 		wallet.reset_to_starting_resources()
 
 	var entities := Node3D.new()
@@ -52,7 +53,7 @@ func _run() -> void:
 
 	var queued: bool = hq.execute_command(&"train_infantry", {})
 	_expect(queued, "Train Infantry command queues production")
-	_expect(wallet.get_amount(&"ore") == 450, "queue spends ore")
+	_expect(wallet.get_amount(&"crystals") == 450, "queue spends crystals")
 	_expect(production.get_active_order() != null, "queued item starts active order")
 
 	_advance_production(production, 3.2)
@@ -76,7 +77,7 @@ func _run() -> void:
 	entities.add_child(hq_poor)
 	hq_poor.team_id = 1
 	wallet.reset_to_starting_resources()
-	_expect(wallet.spend({&"ore": 480}), "test spends ore down below recipe cost")
+	_expect(wallet.spend({&"crystals": 480}), "test spends crystals down below recipe cost")
 	_expect(not hq_poor.execute_command(&"train_infantry", {}), "insufficient resources fail cleanly")
 
 	if _failures == 0:

@@ -14,6 +14,7 @@ func can_execute(entity: EntityBase, context: Dictionary) -> bool:
 	return _is_valid_attack_target(entity, context.get("target_entity"))
 
 func execute(entity: EntityBase, context: Dictionary) -> bool:
+	_cancel_gather(entity)
 	var invalid_reason := _get_invalid_attack_target_reason(entity, context.get("target_entity"))
 	if invalid_reason != "":
 		print("AttackCommand failed: %s" % invalid_reason)
@@ -65,3 +66,8 @@ func _get_entity_display_name(entity: EntityBase) -> String:
 	if entity.display_name.strip_edges() != "":
 		return entity.display_name
 	return entity.name
+
+func _cancel_gather(entity: EntityBase) -> void:
+	var gather := entity.get_component(&"WorkerGatherComponent")
+	if gather != null and gather.has_method("cancel_gather"):
+		gather.cancel_gather(true)

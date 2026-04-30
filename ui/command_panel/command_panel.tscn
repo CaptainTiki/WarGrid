@@ -7,8 +7,8 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 12.0
-offset_top = -260.0
-offset_right = 284.0
+offset_top = -360.0
+offset_right = 332.0
 offset_bottom = -12.0
 mouse_filter = 0
 script = ExtResource("1_panel")
@@ -47,10 +47,45 @@ text = "Status: Unknown"
 visible = false
 layout_mode = 2
 text = "HP: 100 / 100"
+autowrap_mode = 2
 
 [node name="ResourceLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Ore: 500"
+text = "Crystals: 500
+He3: 0"
+
+[node name="ProductionCommandsLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Production: None"
+autowrap_mode = 2
+
+[node name="ActiveProductionLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Active: Idle"
+
+[node name="ProductionProgress" type="ProgressBar" parent="MarginContainer/VBoxContainer"]
+visible = false
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+show_percentage = false
+
+[node name="ProductionQueueLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Queue: 0 / 0"
+
+[node name="ProductionQueueListLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Queued: Empty"
+autowrap_mode = 2
+
+[node name="RallyPointLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Rally: None"
 
 [node name="CommandScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 112)

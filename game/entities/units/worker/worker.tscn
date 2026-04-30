@@ -1,0 +1,111 @@
+[gd_scene load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://game/entities/units/worker/worker.gd" id="1_worker"]
+[ext_resource type="Script" path="res://game/entities/components/movement_component.gd" id="2_mvmnt"]
+[ext_resource type="PackedScene" path="res://game/entities/components/terrain_finder.tscn" id="3_tfndr"]
+[ext_resource type="Script" path="res://game/entities/components/entity_click_area.gd" id="4_click"]
+[ext_resource type="Script" path="res://game/entities/components/command_component.gd" id="5_cmdcp"]
+[ext_resource type="Script" path="res://game/entities/commands/move_command.gd" id="6_move"]
+[ext_resource type="Script" path="res://game/entities/commands/stop_command.gd" id="7_stop"]
+[ext_resource type="Script" path="res://game/entities/commands/gather_resource_command.gd" id="8_gather"]
+[ext_resource type="Script" path="res://game/entities/commands/command_base.gd" id="9_cmdbase"]
+[ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="10_footprint"]
+[ext_resource type="Script" path="res://game/entities/components/health_component.gd" id="11_health"]
+[ext_resource type="Script" path="res://game/entities/components/worker_gather_component.gd" id="12_gather_comp"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
+radius = 0.25
+height = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Material_body"]
+albedo_color = Color(0.95, 0.72, 0.25, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_pack"]
+top_radius = 0.14
+bottom_radius = 0.16
+height = 0.45
+radial_segments = 12
+
+[sub_resource type="StandardMaterial3D" id="Material_pack"]
+albedo_color = Color(0.2, 0.28, 0.32, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_selring"]
+top_radius = 0.45
+bottom_radius = 0.45
+height = 0.03
+radial_segments = 32
+
+[sub_resource type="StandardMaterial3D" id="Material_selring"]
+albedo_color = Color(0.2, 1, 0.2, 1)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape_click"]
+radius = 0.3
+height = 1.0
+
+[sub_resource type="Resource" id="Resource_move"]
+script = ExtResource("6_move")
+
+[sub_resource type="Resource" id="Resource_stop"]
+script = ExtResource("7_stop")
+
+[sub_resource type="Resource" id="Resource_gather"]
+script = ExtResource("8_gather")
+
+[node name="Worker" type="Node3D"]
+script = ExtResource("1_worker")
+display_name = "Worker"
+team_id = 1
+
+[node name="Mesh" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="Mesh"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.48, 0)
+mesh = SubResource("CapsuleMesh_body")
+surface_material_override/0 = SubResource("Material_body")
+
+[node name="Pack" type="MeshInstance3D" parent="Mesh"]
+transform = Transform3D(0.8, 0, 0, 0, 0.8, 0, 0, 0, 0.8, 0, 0.58, 0.25)
+mesh = SubResource("CylinderMesh_pack")
+surface_material_override/0 = SubResource("Material_pack")
+
+[node name="SelectionRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 0)
+visible = false
+mesh = SubResource("CylinderMesh_selring")
+surface_material_override/0 = SubResource("Material_selring")
+
+[node name="ClickArea" type="Area3D" parent="."]
+script = ExtResource("4_click")
+entity_parent = NodePath("..")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ClickArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+shape = SubResource("CapsuleShape_click")
+
+[node name="Components" type="Node3D" parent="."]
+
+[node name="MovementComponent" type="Node3D" parent="Components"]
+script = ExtResource("2_mvmnt")
+speed = 4.25
+move_root_path = NodePath("../..")
+
+[node name="TerrainFinder" parent="Components/MovementComponent" instance=ExtResource("3_tfndr")]
+
+[node name="CommandComponent" type="Node" parent="Components"]
+script = ExtResource("5_cmdcp")
+entity_parent = NodePath("../..")
+commands = Array[ExtResource("9_cmdbase")]([SubResource("Resource_move"), SubResource("Resource_stop"), SubResource("Resource_gather")])
+
+[node name="WorkerGatherComponent" type="Node" parent="Components"]
+script = ExtResource("12_gather_comp")
+entity_parent = NodePath("../..")
+
+[node name="EntityFootprintComponent" type="Node" parent="Components"]
+script = ExtResource("10_footprint")
+entity_parent = NodePath("../..")
+radius = 0.4
+
+[node name="HealthComponent" type="Node" parent="Components"]
+script = ExtResource("11_health")
+entity_parent = NodePath("../..")
+max_health = 75.0

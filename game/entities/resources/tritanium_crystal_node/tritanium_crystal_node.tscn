@@ -1,0 +1,91 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://game/entities/resources/resource_node.gd" id="1_node"]
+[ext_resource type="Script" path="res://game/entities/components/entity_click_area.gd" id="2_click"]
+[ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="3_footprint"]
+[ext_resource type="Script" path="res://game/entities/components/harvestable_component.gd" id="4_harvest"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_crystal_large"]
+top_radius = 0.18
+bottom_radius = 0.42
+height = 1.35
+radial_segments = 6
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_crystal_small"]
+top_radius = 0.12
+bottom_radius = 0.28
+height = 0.9
+radial_segments = 6
+
+[sub_resource type="StandardMaterial3D" id="Material_crystal"]
+albedo_color = Color(0.2, 0.85, 1, 1)
+emission_enabled = true
+emission = Color(0.05, 0.45, 0.8, 1)
+emission_energy_multiplier = 0.45
+
+[sub_resource type="TorusMesh" id="TorusMesh_selring"]
+inner_radius = 0.58
+outer_radius = 0.66
+
+[sub_resource type="StandardMaterial3D" id="Material_selring"]
+albedo_color = Color(0.8, 0.9, 1, 1)
+
+[sub_resource type="SphereShape3D" id="SphereShape_click"]
+radius = 0.85
+
+[node name="TritaniumCrystalNode" type="Node3D"]
+script = ExtResource("1_node")
+display_name = "Tritanium Crystal"
+team_id = 0
+attackable = false
+
+[node name="VisualRoot" type="Node3D" parent="."]
+
+[node name="CrystalLarge" type="MeshInstance3D" parent="VisualRoot"]
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, 0.7, 0)
+mesh = SubResource("CylinderMesh_crystal_large")
+surface_material_override/0 = SubResource("Material_crystal")
+
+[node name="CrystalSmallA" type="MeshInstance3D" parent="VisualRoot"]
+transform = Transform3D(0.819152, 0.148452, 0.554032, 0, 0.965926, -0.258819, -0.573576, 0.212012, 0.79124, -0.32, 0.45, 0.18)
+mesh = SubResource("CylinderMesh_crystal_small")
+surface_material_override/0 = SubResource("Material_crystal")
+
+[node name="CrystalSmallB" type="MeshInstance3D" parent="VisualRoot"]
+transform = Transform3D(0.766044, -0.166366, -0.620885, 0, 0.965926, -0.258819, 0.642788, 0.198267, 0.739942, 0.34, 0.48, -0.12)
+mesh = SubResource("CylinderMesh_crystal_small")
+surface_material_override/0 = SubResource("Material_crystal")
+
+[node name="SelectionRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.000796274, -1, 0, 1, 0.000796274, 0, 0.04, 0)
+visible = false
+mesh = SubResource("TorusMesh_selring")
+surface_material_override/0 = SubResource("Material_selring")
+
+[node name="ClickArea" type="Area3D" parent="."]
+script = ExtResource("2_click")
+entity_parent = NodePath("..")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ClickArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+shape = SubResource("SphereShape_click")
+
+[node name="Components" type="Node3D" parent="."]
+
+[node name="EntityFootprintComponent" type="Node" parent="Components"]
+script = ExtResource("3_footprint")
+entity_parent = NodePath("../..")
+radius = 0.65
+is_static = true
+
+[node name="HarvestableComponent" type="Node" parent="Components"]
+script = ExtResource("4_harvest")
+resource_id = &"crystals"
+display_name = "Tritanium Crystal"
+remaining_amount = 150
+max_amount = 150
+harvest_amount_per_load = 10
+harvest_time = 1.0
+allow_multiple_workers = true
+requires_extractor = false
+worker_slot_limit = 0

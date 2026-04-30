@@ -22,6 +22,12 @@ const DEFINITIONS := {
 		"category": &"unit",
 		"default_team_id": 1,
 	},
+	&"worker": {
+		"display_name": "Worker",
+		"scene": preload("res://game/entities/units/worker/worker.tscn"),
+		"category": &"unit",
+		"default_team_id": 1,
+	},
 	&"test_hq": {
 		"display_name": "Test HQ",
 		"scene": preload("res://game/entities/buildings/test_hq/test_hq.tscn"),
@@ -39,6 +45,18 @@ const DEFINITIONS := {
 		"scene": preload("res://game/entities/units/hostile_dummy/hostile_dummy_unit.tscn"),
 		"category": &"unit",
 		"default_team_id": 2,
+	},
+	&"tritanium_crystal_node": {
+		"display_name": "Tritanium Crystal",
+		"scene": preload("res://game/entities/resources/tritanium_crystal_node/tritanium_crystal_node.tscn"),
+		"category": &"resource",
+		"default_team_id": 0,
+	},
+	&"he3_deposit": {
+		"display_name": "Helium-3 Deposit",
+		"scene": preload("res://game/entities/resources/he3_deposit/he3_deposit.tscn"),
+		"category": &"resource",
+		"default_team_id": 0,
 	},
 }
 

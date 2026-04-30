@@ -3,6 +3,7 @@ class_name MovementComponent
 
 const MovementQueryScript := preload("res://game/entities/movement/movement_query.gd")
 const GridPathfinderScript := preload("res://game/entities/movement/grid_pathfinder.gd")
+const MovementSpaceQueryScript := preload("res://game/entities/movement/movement_space_query.gd")
 
 const MAX_SEPARATION_CORRECTION := 0.45
 const SEPARATION_EPSILON := 0.001
@@ -10,10 +11,25 @@ const FOOTPRINT_SHAPE_CIRCLE := 0
 const FOOTPRINT_SHAPE_RECTANGLE := 1
 
 @export var speed: float = 5.0
+@export var arrival_radius: float = 0.25
+@export var target_resolution_radius: float = 4.0
+@export var target_resolution_step: float = 1.0
+@export var stuck_check_interval: float = 0.5
+@export var stuck_timeout_seconds: float = 1.5
+@export var stuck_min_movement: float = 0.05
+@export var stuck_min_progress: float = 0.1
 @export_node_path("Node3D") var move_root_path: NodePath
 
 var _terrain: Terrain = null
 var _path: Array[Vector3] = []
+var _requested_target := Vector3.ZERO
+var _resolved_target := Vector3.ZERO
+var _has_move_target := false
+var _has_retried_stuck_repath := false
+var _stuck_check_remaining := 0.0
+var _stuck_elapsed_without_progress := 0.0
+var _last_progress_position := Vector3.ZERO
+var _last_distance_to_target := 0.0
 var _finders: Array[TerrainFinder] = []
 var _warned_missing_finder := false
 var _warned_missing_move_root := false
@@ -37,21 +53,54 @@ func set_path(points: Array[Vector3]) -> void:
 
 func clear_path() -> void:
 	_path.clear()
+	_has_move_target = false
+	_has_retried_stuck_repath = false
 
 func request_move_to(target: Vector3) -> bool:
+	return _request_move_to(target, true)
+
+func get_resolved_target() -> Vector3:
+	return _resolved_target
+
+func has_move_target() -> bool:
+	return _has_move_target
+
+func _request_move_to(target: Vector3, reset_stuck_retry: bool) -> bool:
 	if _terrain == null:
 		return false
 	var move_root := get_move_root()
 	if move_root == null:
 		return false
-	if MovementQueryScript.is_direct_route_walkable(_terrain, move_root.global_position, target):
-		var direct_path: Array[Vector3] = [target]
-		set_path(direct_path)
+	var entity := move_root as EntityBase
+	var radius := _get_move_root_radius(entity)
+	var resolved_target = MovementSpaceQueryScript.find_nearest_open_position(
+		target,
+		radius,
+		target_resolution_radius,
+		_terrain,
+		entity,
+		target_resolution_step
+	)
+	if resolved_target == null:
+		return false
+
+	_requested_target = target
+	_resolved_target = resolved_target
+	_has_move_target = true
+	if reset_stuck_retry:
+		_has_retried_stuck_repath = false
+
+	if move_root.global_position.distance_to(_resolved_target) <= arrival_radius:
+		_path.clear()
+		_reset_stuck_progress(move_root)
 		return true
-	var path: Array[Vector3] = GridPathfinderScript.find_path(_terrain, move_root.global_position, target)
+
+	var path := _build_path_to(_resolved_target, move_root)
 	if path.is_empty():
+		_has_move_target = false
 		return false
 	set_path(path)
+	_reset_stuck_progress(move_root)
 	return true
 
 func has_path() -> bool:
@@ -67,10 +116,15 @@ func _process(delta: float) -> void:
 	if _path.is_empty() or _terrain == null:
 		return
 	_advance(delta)
+	if not _path.is_empty():
+		_tick_stuck_detection(delta)
 
 func _advance(delta: float) -> void:
 	var move_root := get_move_root()
 	if move_root == null:
+		return
+	if _has_move_target and move_root.global_position.distance_to(_resolved_target) <= arrival_radius:
+		clear_path()
 		return
 	var target: Vector3 = _path[0]
 	var pos: Vector3 = move_root.global_position
@@ -78,8 +132,10 @@ func _advance(delta: float) -> void:
 	var flat_dir: Vector3 = Vector3(target.x - pos.x, 0.0, target.z - pos.z)
 	var dist: float = flat_dir.length()
 
-	if dist < 0.05:
+	if dist <= arrival_radius:
 		_path.pop_front()
+		if _path.is_empty() and _has_move_target:
+			clear_path()
 		return
 
 	flat_dir = flat_dir / dist
@@ -96,6 +152,65 @@ func _advance(delta: float) -> void:
 	move_root.look_at(facing_target, Vector3.UP)
 	move_root.rotation.x = 0.0
 	move_root.rotation.z = 0.0
+
+func _build_path_to(target: Vector3, move_root: Node3D) -> Array[Vector3]:
+	var entity := move_root as EntityBase
+	var radius := _get_move_root_radius(entity)
+	if MovementQueryScript.is_direct_route_walkable(_terrain, move_root.global_position, target, 1.0, radius, entity):
+		return [target]
+	return GridPathfinderScript.find_path(_terrain, move_root.global_position, target)
+
+func _reset_stuck_progress(move_root: Node3D) -> void:
+	_stuck_check_remaining = maxf(stuck_check_interval, 0.05)
+	_stuck_elapsed_without_progress = 0.0
+	_last_progress_position = move_root.global_position
+	_last_distance_to_target = move_root.global_position.distance_to(_resolved_target)
+
+func _tick_stuck_detection(delta: float) -> void:
+	var move_root := get_move_root()
+	if move_root == null or not _has_move_target:
+		return
+	_stuck_check_remaining -= delta
+	if _stuck_check_remaining > 0.0:
+		return
+	var current_distance := move_root.global_position.distance_to(_resolved_target)
+	var distance_progress := _last_distance_to_target - current_distance
+	var position_progress := move_root.global_position.distance_to(_last_progress_position)
+	if distance_progress < stuck_min_progress and position_progress < stuck_min_movement:
+		_stuck_elapsed_without_progress += maxf(stuck_check_interval, 0.05)
+	else:
+		_stuck_elapsed_without_progress = 0.0
+	if _stuck_elapsed_without_progress >= maxf(stuck_timeout_seconds, maxf(stuck_check_interval, 0.05)):
+		_handle_stuck(move_root)
+		return
+	_stuck_check_remaining = maxf(stuck_check_interval, 0.05)
+	_last_progress_position = move_root.global_position
+	_last_distance_to_target = current_distance
+
+func _handle_stuck(move_root: Node3D) -> void:
+	if _has_retried_stuck_repath:
+		print("%s movement stopped: no progress toward target." % _get_move_root_display_name(move_root))
+		clear_path()
+		return
+	_has_retried_stuck_repath = true
+	if not _request_move_to(_requested_target, false):
+		print("%s movement stopped: could not repath after no progress." % _get_move_root_display_name(move_root))
+		clear_path()
+
+func _get_move_root_radius(entity: EntityBase) -> float:
+	if entity == null:
+		return 0.5
+	var footprint := entity.get_footprint_component()
+	if footprint != null and footprint.has_method("get_separation_radius"):
+		return maxf(footprint.get_separation_radius(), 0.1)
+	return 0.5
+
+func _get_move_root_display_name(move_root: Node3D) -> String:
+	if move_root is EntityBase:
+		var entity := move_root as EntityBase
+		if entity.display_name.strip_edges() != "":
+			return entity.display_name
+	return move_root.name
 
 func _apply_footprint_separation(move_root: Node3D, proposed_position: Vector3) -> Vector3:
 	var entity := move_root as EntityBase

@@ -10,6 +10,9 @@
 [ext_resource type="Script" path="res://game/entities/components/health_component.gd" id="8_health"]
 [ext_resource type="Script" path="res://game/production/production_component.gd" id="9_prod"]
 [ext_resource type="Resource" path="res://game/production/recipes/train_infantry.tres" id="10_train_recipe"]
+[ext_resource type="Script" path="res://game/entities/commands/train_worker_command.gd" id="11_train_worker"]
+[ext_resource type="Resource" path="res://game/production/recipes/train_worker.tres" id="12_worker_recipe"]
+[ext_resource type="Script" path="res://game/entities/components/drop_off_component.gd" id="13_dropoff"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_hq"]
 size = Vector3(4, 2, 4)
@@ -31,6 +34,9 @@ size = Vector3(4.2, 2.2, 4.2)
 
 [sub_resource type="Resource" id="Resource_train"]
 script = ExtResource("4_train")
+
+[sub_resource type="Resource" id="Resource_train_worker"]
+script = ExtResource("11_train_worker")
 
 [sub_resource type="Resource" id="Resource_rally"]
 script = ExtResource("5_rally")
@@ -65,14 +71,20 @@ shape = SubResource("BoxShape_click")
 [node name="CommandComponent" type="Node" parent="Components" unique_id=1695049263]
 script = ExtResource("3_cmdcp")
 entity_parent = NodePath("../..")
-commands = Array[ExtResource("6_cmdbase")]([SubResource("Resource_train"), SubResource("Resource_rally")])
+commands = Array[ExtResource("6_cmdbase")]([SubResource("Resource_train"), SubResource("Resource_train_worker"), SubResource("Resource_rally")])
 
 [node name="ProductionComponent" type="Node" parent="Components"]
 script = ExtResource("9_prod")
 entity_parent = NodePath("../..")
-available_recipes = [ExtResource("10_train_recipe")]
+available_recipes = [ExtResource("10_train_recipe"), ExtResource("12_worker_recipe")]
 queue_limit = 5
 spawn_offset = Vector3(3, 0, 0)
+
+[node name="DropOffComponent" type="Node" parent="Components"]
+script = ExtResource("13_dropoff")
+entity_parent = NodePath("../..")
+accepts_resource_ids = Array[StringName]([&"crystals"])
+deposit_range = 2.8
 
 [node name="EntityFootprintComponent" type="Node" parent="Components"]
 script = ExtResource("7_footprint")

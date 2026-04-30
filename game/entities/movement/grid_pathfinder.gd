@@ -89,6 +89,8 @@ static func _cell_to_world(terrain: Terrain, cell: Vector2i, cell_size: float) -
 	return terrain.to_global(local)
 
 static func _is_cell_walkable(terrain: Terrain, cell: Vector2i, cell_size: float) -> bool:
+	if terrain.runtime_state != null:
+		return terrain.runtime_state.is_cell_effectively_walkable(cell)
 	return terrain.is_ground_walkable_at_local_position(_cell_to_local(cell, cell_size))
 
 static func _heuristic(a: Vector2i, b: Vector2i) -> int:

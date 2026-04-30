@@ -30,7 +30,7 @@ func _run() -> void:
 	_expect(dock != null, "entity dock exists")
 	for button_name in ["SelectToolButton", "PlaceToolButton", "MoveToolButton", "RotateToolButton", "DeleteToolButton"]:
 		_expect(dock.get_node_or_null("MarginContainer/VBoxContainer/ToolGrid/%s" % button_name) != null, "entity dock has %s" % button_name)
-	for entity_id in [&"infantry", &"scout_bike", &"scout_buggy", &"test_hq", &"enemy_test_hq", &"enemy_dummy_unit"]:
+	for entity_id in [&"infantry", &"scout_bike", &"scout_buggy", &"worker", &"test_hq", &"enemy_test_hq", &"enemy_dummy_unit", &"tritanium_crystal_node", &"he3_deposit"]:
 		_expect(_dock_has_entity_id(dock, entity_id), "entity dock lists %s" % entity_id)
 
 	var before_count: int = editor.terrain.map_data.entity_placements.size()

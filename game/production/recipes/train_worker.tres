@@ -4,12 +4,12 @@
 
 [resource]
 script = ExtResource("1_recipe")
-id = &"train_infantry"
-display_name = "Train Infantry"
-produced_entity_id = &"infantry"
-build_time = 3.0
+id = &"train_worker"
+display_name = "Train Worker"
+produced_entity_id = &"worker"
+build_time = 3.5
 costs = {
 &"crystals": 50
 }
-description = "Train a basic infantry unit."
+description = "Train a worker unit."
 category = &"unit"

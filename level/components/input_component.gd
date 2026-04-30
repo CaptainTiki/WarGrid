@@ -257,6 +257,15 @@ func _execute_move_command_on_entities(entities: Array[EntityBase], target_posit
 	return success_count
 
 func _handle_right_click_entity_target(commandable_entities: Array[EntityBase], target_entity: EntityBase) -> void:
+	if _is_harvestable_target(target_entity):
+		var gatherers := _get_entities_with_command(commandable_entities, &"gather")
+		if gatherers.is_empty():
+			print("Right-click resource target ignored: no selected workers can gather.")
+			return
+		_execute_command_on_entities(gatherers, &"gather", {
+			"target_entity": target_entity,
+		})
+		return
 	if _can_any_source_attack_target(commandable_entities, target_entity):
 		_execute_command_on_entities(commandable_entities, &"attack", {
 			"target_entity": target_entity,
@@ -273,6 +282,11 @@ func _can_any_source_attack_target(source_entities: Array[EntityBase], target_en
 		if source.is_hostile_to(target_entity):
 			return true
 	return false
+
+func _is_harvestable_target(target_entity: EntityBase) -> bool:
+	if target_entity == null or not is_instance_valid(target_entity):
+		return false
+	return target_entity.get_component(&"HarvestableComponent") != null
 
 func _get_commandable_selection(entities: Array[EntityBase]) -> Array[EntityBase]:
 	var commandable_entities: Array[EntityBase] = []

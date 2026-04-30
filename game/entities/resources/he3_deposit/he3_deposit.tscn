@@ -1,0 +1,84 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://game/entities/resources/resource_node.gd" id="1_node"]
+[ext_resource type="Script" path="res://game/entities/components/entity_click_area.gd" id="2_click"]
+[ext_resource type="Script" path="res://game/entities/components/entity_footprint_component.gd" id="3_footprint"]
+[ext_resource type="Script" path="res://game/entities/components/harvestable_component.gd" id="4_harvest"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_deposit"]
+top_radius = 0.72
+bottom_radius = 0.9
+height = 0.28
+radial_segments = 24
+
+[sub_resource type="SphereMesh" id="SphereMesh_gas"]
+radius = 0.42
+height = 0.62
+
+[sub_resource type="StandardMaterial3D" id="Material_deposit"]
+albedo_color = Color(0.18, 0.55, 0.38, 1)
+
+[sub_resource type="StandardMaterial3D" id="Material_gas"]
+transparency = 1
+albedo_color = Color(0.35, 1, 0.72, 0.42)
+emission_enabled = true
+emission = Color(0.08, 0.75, 0.44, 1)
+emission_energy_multiplier = 0.35
+
+[sub_resource type="TorusMesh" id="TorusMesh_selring"]
+inner_radius = 0.82
+outer_radius = 0.92
+
+[sub_resource type="SphereShape3D" id="SphereShape_click"]
+radius = 1.0
+
+[node name="He3Deposit" type="Node3D"]
+script = ExtResource("1_node")
+display_name = "Helium-3 Deposit"
+team_id = 0
+attackable = false
+
+[node name="VisualRoot" type="Node3D" parent="."]
+
+[node name="DepositBase" type="MeshInstance3D" parent="VisualRoot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.14, 0)
+mesh = SubResource("CylinderMesh_deposit")
+surface_material_override/0 = SubResource("Material_deposit")
+
+[node name="GasPocket" type="MeshInstance3D" parent="VisualRoot"]
+transform = Transform3D(1.2, 0, 0, 0, 0.7, 0, 0, 0, 1.2, 0, 0.45, 0)
+mesh = SubResource("SphereMesh_gas")
+surface_material_override/0 = SubResource("Material_gas")
+
+[node name="SelectionRing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.000796274, -1, 0, 1, 0.000796274, 0, 0.04, 0)
+visible = false
+mesh = SubResource("TorusMesh_selring")
+
+[node name="ClickArea" type="Area3D" parent="."]
+script = ExtResource("2_click")
+entity_parent = NodePath("..")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ClickArea"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, 0)
+shape = SubResource("SphereShape_click")
+
+[node name="Components" type="Node3D" parent="."]
+
+[node name="EntityFootprintComponent" type="Node" parent="Components"]
+script = ExtResource("3_footprint")
+entity_parent = NodePath("../..")
+radius = 0.9
+is_static = true
+
+[node name="HarvestableComponent" type="Node" parent="Components"]
+script = ExtResource("4_harvest")
+resource_id = &"he3"
+display_name = "Helium-3 Deposit"
+remaining_amount = 2000
+max_amount = 2000
+harvest_amount_per_load = 10
+harvest_time = 4.0
+allow_multiple_workers = false
+requires_extractor = true
+worker_slot_limit = 1

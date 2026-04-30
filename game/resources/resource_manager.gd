@@ -5,7 +5,8 @@ signal resource_changed(resource_id: StringName, amount: int)
 signal resources_changed
 
 @export var starting_resources: Dictionary = {
-	&"ore": 500,
+	&"crystals": 500,
+	&"he3": 0,
 }
 
 var _resources: Dictionary = {}
@@ -42,4 +43,3 @@ func add_resource(resource_id: StringName, amount: int) -> void:
 	_resources[resource_id] = get_amount(resource_id) + amount
 	resource_changed.emit(resource_id, get_amount(resource_id))
 	resources_changed.emit()
-

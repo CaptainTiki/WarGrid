@@ -21,6 +21,7 @@ func can_execute(entity: EntityBase, context: Dictionary) -> bool:
 
 func execute(entity: EntityBase, context: Dictionary) -> bool:
 	_stop_combat(entity)
+	_cancel_gather(entity)
 	var movement := entity.get_component(&"MovementComponent") as MovementComponent
 	if movement == null:
 		return false
@@ -37,7 +38,8 @@ func execute(entity: EntityBase, context: Dictionary) -> bool:
 		return false
 	var combat := entity.get_component(&"CombatComponent")
 	if combat != null and combat.has_method("set_home_position"):
-		combat.set_home_position(target)
+		var home_position := movement.get_resolved_target() if movement.has_method("get_resolved_target") else target
+		combat.set_home_position(home_position)
 	print("MoveCommand: move requested.")
 	return true
 
@@ -48,3 +50,8 @@ func _stop_combat(entity: EntityBase) -> void:
 	var command_component := entity.get_component(&"CommandComponent") as CommandComponent
 	if command_component != null:
 		command_component.clear_current_target()
+
+func _cancel_gather(entity: EntityBase) -> void:
+	var gather := entity.get_component(&"WorkerGatherComponent")
+	if gather != null and gather.has_method("cancel_gather"):
+		gather.cancel_gather(true)

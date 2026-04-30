@@ -6,9 +6,8 @@ class_name ProductionRecipe
 @export var produced_entity_id: StringName
 @export var build_time: float = 5.0
 @export var costs: Dictionary = {
-	&"ore": 50,
+	&"crystals": 50,
 }
 @export var icon: Texture2D
 @export_multiline var description: String = ""
 @export var category: StringName = &"unit"
-
