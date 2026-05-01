@@ -1,0 +1,32 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://game/ui/hud/top_bar/top_bar.gd" id="1_top_bar"]
+[ext_resource type="PackedScene" path="res://game/ui/hud/resource_display/resource_display.tscn" id="2_resource_display"]
+
+[node name="TopBar" type="PanelContainer"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 48.0
+grow_horizontal = 2
+mouse_filter = 0
+script = ExtResource("1_top_bar")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ResourceDisplay" parent="MarginContainer/HBoxContainer" instance=ExtResource("2_resource_display")]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="QuitButton" type="Button" parent="MarginContainer/HBoxContainer"]
+custom_minimum_size = Vector2(40, 32)
+layout_mode = 2
+text = "X"

@@ -1,11 +1,12 @@
-[gd_scene load_steps=8 format=3 uid="uid://cyiylf4rbj1to"]
+[gd_scene load_steps=9 format=3 uid="uid://cyiylf4rbj1to"]
 
 [ext_resource type="Script" path="res://level/level.gd" id="1_y1t8g"]
 [ext_resource type="Script" uid="uid://cmxlihyhms710" path="res://terrain/terrain.gd" id="2_4jssj"]
 [ext_resource type="PackedScene" path="res://level/components/player_camera_rig.tscn" id="3_akgwb"]
 [ext_resource type="PackedScene" path="res://level/components/selection_component.tscn" id="5_selct"]
 [ext_resource type="PackedScene" path="res://level/components/input_component.tscn" id="6_inpct"]
-[ext_resource type="PackedScene" path="res://ui/command_panel/command_panel.tscn" id="8_cmdpn"]
+[ext_resource type="PackedScene" path="res://game/ui/hud/hud_root.tscn" id="8_hud"]
+[ext_resource type="PackedScene" path="res://ui/command_panel/command_panel.tscn" id="9_cmdpn"]
 
 [node name="Level" type="Node3D"]
 script = ExtResource("1_y1t8g")
@@ -25,7 +26,10 @@ script = ExtResource("2_4jssj")
 
 [node name="UI" type="CanvasLayer" parent="."]
 
-[node name="CommandPanel" parent="UI" instance=ExtResource("8_cmdpn")]
+[node name="HudRoot" parent="UI" instance=ExtResource("8_hud")]
+
+[node name="CommandPanel" parent="UI" instance=ExtResource("9_cmdpn")]
+visible = false
 
 [node name="SelectionRect" type="ColorRect" parent="UI"]
 visible = false

@@ -10,7 +10,7 @@ const RuntimeMapStateScript := preload("res://game/runtime/runtime_map_state.gd"
 @onready var _entities_root: Node3D = $Entities
 @onready var _selection: SelectionComponent = $Components/SelectionComponent
 @onready var _input: InputComponent = $Components/InputComponent
-@onready var _command_panel: Node = $UI/CommandPanel
+@onready var _hud_root: Node = $UI/HudRoot
 
 var runtime_map_state: RuntimeMapState = null
 var _entity_catalog := EntityCatalogScript.new()
@@ -18,8 +18,8 @@ var _entity_catalog := EntityCatalogScript.new()
 func _ready() -> void:
 	_ensure_runtime_map_state()
 	_ensure_light()
-	_selection.selection_changed.connect(_command_panel.set_selected_entities)
-	_command_panel.command_targeting_requested.connect(_input.begin_command_targeting)
+	_selection.selection_changed.connect(_hud_root.set_selected_entities)
+	_hud_root.command_targeting_requested.connect(_input.begin_command_targeting)
 
 func load_map(path: String) -> bool:
 	if not ResourceLoader.exists(path):

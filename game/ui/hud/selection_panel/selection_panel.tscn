@@ -1,0 +1,90 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/ui/hud/selection_panel/selection_panel.gd" id="1_selection_panel"]
+
+[node name="SelectionPanel" type="Control"]
+clip_contents = true
+mouse_filter = 0
+script = ExtResource("1_selection_panel")
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 5
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="SelectedEntityLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "No selection"
+
+[node name="SelectionCountLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Selected: 0"
+
+[node name="TeamLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Team: Unknown"
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Status: Unknown"
+
+[node name="HealthLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "HP: 100 / 100"
+autowrap_mode = 2
+
+[node name="ProductionCommandsLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Production: None"
+autowrap_mode = 2
+
+[node name="ActiveProductionLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Active: Idle"
+
+[node name="ProductionProgress" type="ProgressBar" parent="MarginContainer/VBoxContainer"]
+visible = false
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+show_percentage = false
+
+[node name="ProductionQueueLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Queue: 0 / 0"
+
+[node name="ProductionQueueListLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Queued: Empty"
+autowrap_mode = 2
+
+[node name="RallyPointLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+text = "Rally: None"
