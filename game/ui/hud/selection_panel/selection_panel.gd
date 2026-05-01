@@ -1,24 +1,35 @@
 extends Control
 class_name SelectionPanel
 
-const PLAYER_TEAM_ID := 1
+const TILE_SIZE := Vector2(52.0, 46.0)
+const QUEUE_CHIP_SIZE := Vector2(34.0, 22.0)
 
-@onready var _selected_label: Label = $MarginContainer/VBoxContainer/SelectedEntityLabel
-@onready var _selection_count_label: Label = $MarginContainer/VBoxContainer/SelectionCountLabel
-@onready var _team_label: Label = $MarginContainer/VBoxContainer/TeamLabel
-@onready var _status_label: Label = $MarginContainer/VBoxContainer/StatusLabel
-@onready var _health_label: Label = $MarginContainer/VBoxContainer/HealthLabel
-@onready var _production_commands_label: Label = $MarginContainer/VBoxContainer/ProductionCommandsLabel
-@onready var _active_production_label: Label = $MarginContainer/VBoxContainer/ActiveProductionLabel
-@onready var _production_progress: ProgressBar = $MarginContainer/VBoxContainer/ProductionProgress
-@onready var _production_queue_label: Label = $MarginContainer/VBoxContainer/ProductionQueueLabel
-@onready var _production_queue_list_label: Label = $MarginContainer/VBoxContainer/ProductionQueueListLabel
-@onready var _rally_point_label: Label = $MarginContainer/VBoxContainer/RallyPointLabel
+@onready var _empty_selection_label: Label = $MarginContainer/EmptySelectionLabel
+@onready var _single_selection: HBoxContainer = $MarginContainer/SingleSelection
+@onready var _portrait_button: Button = $MarginContainer/SingleSelection/PortraitButton
+@onready var _selected_label: Label = $MarginContainer/SingleSelection/Details/SelectedEntityLabel
+@onready var _status_label: Label = $MarginContainer/SingleSelection/Details/StatusLabel
+@onready var _health_row: HBoxContainer = $MarginContainer/SingleSelection/Details/HealthRow
+@onready var _health_label: Label = $MarginContainer/SingleSelection/Details/HealthRow/HealthLabel
+@onready var _health_bar: ProgressBar = $MarginContainer/SingleSelection/Details/HealthRow/HealthBar
+@onready var _active_production_label: Label = $MarginContainer/SingleSelection/Details/ActiveProductionLabel
+@onready var _production_progress: ProgressBar = $MarginContainer/SingleSelection/Details/ProductionProgress
+@onready var _building_selection: HBoxContainer = $MarginContainer/BuildingSelection
+@onready var _building_identity_block: Button = $MarginContainer/BuildingSelection/IdentityBlock
+@onready var _building_name_label: Label = $MarginContainer/BuildingSelection/BuildingInfoBlock/BuildingNameLabel
+@onready var _building_status_label: Label = $MarginContainer/BuildingSelection/BuildingInfoBlock/BuildingStatusLabel
+@onready var _building_health_label: Label = $MarginContainer/BuildingSelection/BuildingInfoBlock/BuildingHealthLabel
+@onready var _building_production_label: Label = $MarginContainer/BuildingSelection/ProductionInfoBlock/BuildingProductionLabel
+@onready var _building_production_progress: ProgressBar = $MarginContainer/BuildingSelection/ProductionInfoBlock/BuildingProductionProgress
+@onready var _building_queue_row: HBoxContainer = $MarginContainer/BuildingSelection/ProductionInfoBlock/QueueRow
+@onready var _building_queue_chips: HBoxContainer = $MarginContainer/BuildingSelection/ProductionInfoBlock/QueueRow/QueueChips
+@onready var _multi_selection: VBoxContainer = $MarginContainer/MultiSelection
+@onready var _multi_header_label: Label = $MarginContainer/MultiSelection/MultiHeaderLabel
+@onready var _tile_row: HBoxContainer = $MarginContainer/MultiSelection/TileScroll/TileRow
 
 var _selected_entity: EntityBase = null
 var _selected_entities: Array[EntityBase] = []
 var _selected_health_component: Node = null
-var _selected_harvestable_component: Node = null
 var _selected_worker_gather_component: Node = null
 var _selected_production_component: Node = null
 
@@ -49,32 +60,235 @@ func refresh_selected_entity_info() -> void:
 
 func _rebuild() -> void:
 	_prune_invalid_selected_entities()
+	_disconnect_single_entity_signals()
+
+	_empty_selection_label.visible = _selected_entities.is_empty()
+	_single_selection.visible = _selected_entities.size() == 1 and not _is_building(_selected_entity)
+	_building_selection.visible = _selected_entities.size() == 1 and _is_building(_selected_entity)
+	_multi_selection.visible = _selected_entities.size() > 1
+
 	if _selected_entities.is_empty():
-		_selected_label.text = "No selection"
-		_hide_scan_labels()
-		_hide_harvestable_label()
-		_hide_health_label()
-		_hide_production_info()
+		_clear_multi_tiles()
+		_clear_queue_chips()
 		return
-
-	var commandable_entities := _get_commandable_selection()
 	if _selected_entities.size() > 1:
-		_selected_label.text = "%d selected" % _selected_entities.size()
-		_show_multi_selection_info(commandable_entities)
-		_hide_harvestable_label()
-		_hide_health_label()
-		_hide_production_info()
+		_clear_queue_chips()
+		_show_multi_selection()
 		return
+	if _is_building(_selected_entity):
+		_clear_multi_tiles()
+		_show_building_selection(_selected_entity)
+		return
+	_show_single_selection(_selected_entity)
 
-	_selected_label.text = _get_entity_display_name(_selected_entity)
-	_show_single_selection_info(_selected_entity)
-	if _get_harvestable_component(_selected_entity) != null:
-		_hide_health_label()
-		_update_harvestable_label(_selected_entity)
+func _show_single_selection(entity: EntityBase) -> void:
+	_clear_multi_tiles()
+	_selected_label.text = _get_entity_display_name(entity)
+	_status_label.text = _get_entity_status(entity)
+	_portrait_button.text = _get_tile_text(entity)
+	_portrait_button.tooltip_text = _get_entity_display_name(entity)
+	_update_health_info(entity)
+	_update_production_info(entity)
+
+func _show_building_selection(entity: EntityBase) -> void:
+	_building_identity_block.text = _get_tile_text(entity)
+	_building_identity_block.tooltip_text = _get_entity_display_name(entity)
+	_building_name_label.text = _get_entity_display_name(entity)
+	_building_status_label.text = _get_entity_status(entity)
+	_update_building_health_info(entity)
+	_update_building_production_info(entity)
+
+func _show_multi_selection() -> void:
+	_clear_multi_tiles()
+	var status_summary := _get_multi_status_summary()
+	_multi_header_label.text = "%d units | %s" % [_selected_entities.size(), status_summary]
+	for entity in _selected_entities:
+		_tile_row.add_child(_create_entity_tile(entity))
+
+func _create_entity_tile(entity: EntityBase) -> Button:
+	var tile := Button.new()
+	tile.custom_minimum_size = TILE_SIZE
+	tile.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tile.focus_mode = Control.FOCUS_NONE
+	tile.clip_text = true
+	tile.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	tile.text = _get_tile_text(entity)
+	tile.tooltip_text = "%s\n%s" % [_get_entity_display_name(entity), _get_entity_status(entity)]
+	return tile
+
+func _clear_multi_tiles() -> void:
+	for child in _tile_row.get_children():
+		child.queue_free()
+
+func _clear_queue_chips() -> void:
+	for child in _building_queue_chips.get_children():
+		child.queue_free()
+
+func _update_health_info(entity: EntityBase) -> void:
+	var health := entity.get_health_component() if entity != null else null
+	if health == null:
+		_health_row.visible = false
+		return
+	_selected_health_component = health
+	if health.has_signal("health_changed"):
+		health.health_changed.connect(_on_selected_health_changed)
+	_health_row.visible = true
+	_health_label.visible = true
+	_health_bar.visible = true
+	_set_health_values(entity, health)
+	_connect_worker_gather_label(entity)
+
+func _set_health_values(entity: EntityBase, health: Node) -> void:
+	if health == null:
+		return
+	_health_label.text = "%.0f / %.0f" % [health.current_health, health.max_health]
+	_health_bar.max_value = maxf(health.max_health, 1.0)
+	_health_bar.value = clampf(health.current_health, 0.0, _health_bar.max_value)
+	var gather := entity.get_component(&"WorkerGatherComponent") if entity != null else null
+	if gather != null and gather.has_method("get_cargo_text"):
+		var cargo_text: String = gather.get_cargo_text()
+		if cargo_text.strip_edges() != "":
+			_status_label.text = "%s | %s" % [_get_entity_status(entity), cargo_text]
+
+func _on_selected_health_changed(_current_health: float, _max_health: float) -> void:
+	if _selected_entity == null or not is_instance_valid(_selected_entity):
+		return
+	if _is_building(_selected_entity):
+		_set_building_health_values(_selected_health_component)
 	else:
-		_hide_harvestable_label()
-		_update_health_label(_selected_entity)
-	_update_production_info(_selected_entity)
+		_set_health_values(_selected_entity, _selected_health_component)
+
+func _connect_worker_gather_label(entity: EntityBase) -> void:
+	var gather := entity.get_component(&"WorkerGatherComponent") if entity != null else null
+	_selected_worker_gather_component = gather
+	if gather != null and gather.has_signal("gather_changed"):
+		gather.gather_changed.connect(_on_selected_worker_gather_changed)
+
+func _on_selected_worker_gather_changed() -> void:
+	if _selected_entity == null or not is_instance_valid(_selected_entity):
+		return
+	_status_label.text = _get_entity_status(_selected_entity)
+	if _selected_health_component != null:
+		_set_health_values(_selected_entity, _selected_health_component)
+
+func _update_production_info(entity: EntityBase) -> void:
+	var production := entity.get_component(&"ProductionComponent") if entity != null else null
+	if production == null:
+		_selected_production_component = null
+		_active_production_label.visible = false
+		_production_progress.visible = false
+		return
+	_selected_production_component = production
+	if production.has_signal("production_changed"):
+		production.production_changed.connect(_on_selected_production_changed)
+	_active_production_label.visible = true
+	_production_progress.visible = true
+	_set_production_values(production)
+
+func _set_production_values(production: Node) -> void:
+	if production == null:
+		return
+	var active_order = production.get_active_order() if production.has_method("get_active_order") else null
+	if active_order != null and active_order.recipe != null:
+		_active_production_label.text = "Active: %s" % _get_recipe_display_name(active_order.recipe)
+	else:
+		_active_production_label.text = "Active: Idle"
+	var progress: float = production.get_progress_ratio() if production.has_method("get_progress_ratio") else 0.0
+	_production_progress.value = roundf(progress * 100.0)
+
+func _update_building_health_info(entity: EntityBase) -> void:
+	var health := entity.get_health_component() if entity != null else null
+	if health == null:
+		_building_health_label.text = "HP: --"
+		return
+	_selected_health_component = health
+	if health.has_signal("health_changed"):
+		health.health_changed.connect(_on_selected_health_changed)
+	_set_building_health_values(health)
+
+func _set_building_health_values(health: Node) -> void:
+	if health == null:
+		return
+	_building_health_label.text = "HP: %.0f / %.0f" % [health.current_health, health.max_health]
+
+func _update_building_production_info(entity: EntityBase) -> void:
+	var production := entity.get_component(&"ProductionComponent") if entity != null else null
+	if production == null:
+		_selected_production_component = null
+		_building_production_label.text = "No production"
+		_building_production_progress.visible = false
+		_building_queue_row.visible = false
+		_clear_queue_chips()
+		return
+	_selected_production_component = production
+	if production.has_signal("production_changed"):
+		production.production_changed.connect(_on_selected_production_changed)
+	_building_production_progress.visible = true
+	_set_building_production_values(production)
+
+func _set_building_production_values(production: Node) -> void:
+	if production == null:
+		return
+	var active_order = production.get_active_order() if production.has_method("get_active_order") else null
+	if active_order != null and active_order.recipe != null:
+		_building_production_label.text = "Producing: %s" % _get_recipe_display_name(active_order.recipe)
+		_building_production_progress.visible = true
+	else:
+		_building_production_label.text = "No active production"
+		_building_production_progress.visible = false
+	var progress: float = production.get_progress_ratio() if production.has_method("get_progress_ratio") else 0.0
+	_building_production_progress.value = roundf(progress * 100.0)
+	_update_building_queue_chips(production)
+
+func _update_building_queue_chips(production: Node) -> void:
+	_clear_queue_chips()
+	var queued_orders: Array = production.get_queued_orders() if production != null and production.has_method("get_queued_orders") else []
+	_building_queue_row.visible = not queued_orders.is_empty()
+	for order in queued_orders:
+		if order == null or order.recipe == null:
+			continue
+		var chip := Button.new()
+		chip.custom_minimum_size = QUEUE_CHIP_SIZE
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.focus_mode = Control.FOCUS_NONE
+		chip.clip_text = true
+		chip.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		chip.text = _get_recipe_chip_text(order.recipe)
+		chip.tooltip_text = _get_recipe_display_name(order.recipe)
+		_building_queue_chips.add_child(chip)
+
+func _on_selected_production_changed() -> void:
+	if _selected_production_component == null or not is_instance_valid(_selected_production_component):
+		_active_production_label.visible = false
+		_production_progress.visible = false
+		_building_production_progress.visible = false
+		_building_queue_row.visible = false
+		return
+	if _selected_entity != null and is_instance_valid(_selected_entity):
+		if _is_building(_selected_entity):
+			_building_status_label.text = _get_entity_status(_selected_entity)
+			_set_building_production_values(_selected_production_component)
+		else:
+			_set_production_values(_selected_production_component)
+			_status_label.text = _get_entity_status(_selected_entity)
+
+func _disconnect_single_entity_signals() -> void:
+	if _selected_health_component != null and is_instance_valid(_selected_health_component):
+		if _selected_health_component.has_signal("health_changed") and _selected_health_component.health_changed.is_connected(_on_selected_health_changed):
+			_selected_health_component.health_changed.disconnect(_on_selected_health_changed)
+	_selected_health_component = null
+
+	if _selected_worker_gather_component != null and is_instance_valid(_selected_worker_gather_component):
+		if _selected_worker_gather_component.has_signal("gather_changed") and _selected_worker_gather_component.gather_changed.is_connected(_on_selected_worker_gather_changed):
+			_selected_worker_gather_component.gather_changed.disconnect(_on_selected_worker_gather_changed)
+	_selected_worker_gather_component = null
+
+	if _selected_production_component != null and is_instance_valid(_selected_production_component):
+		if _selected_production_component.has_signal("production_changed") and _selected_production_component.production_changed.is_connected(_on_selected_production_changed):
+			_selected_production_component.production_changed.disconnect(_on_selected_production_changed)
+	_selected_production_component = null
 
 func _prune_invalid_selected_entities() -> void:
 	for i in range(_selected_entities.size() - 1, -1, -1):
@@ -84,223 +298,76 @@ func _prune_invalid_selected_entities() -> void:
 	if not _selected_entities.is_empty():
 		_selected_entity = _selected_entities[0]
 
-func _get_commandable_selection() -> Array[EntityBase]:
-	var entities: Array[EntityBase] = []
+func _get_multi_status_summary() -> String:
+	var counts: Dictionary = {}
 	for entity in _selected_entities:
-		if _is_commandable_by_player(entity):
-			entities.append(entity)
-	return entities
+		var status := _get_entity_status(entity)
+		counts[status] = int(counts.get(status, 0)) + 1
+	if counts.size() == 1:
+		return String(counts.keys()[0])
+	var top_status := "Mixed"
+	var top_count := 0
+	for status in counts:
+		var count := int(counts[status])
+		if count > top_count:
+			top_count = count
+			top_status = status
+	return "%s / Mixed" % top_status
 
-func _is_commandable_by_player(entity: EntityBase) -> bool:
+func _get_entity_status(entity: EntityBase) -> String:
+	if entity == null or not is_instance_valid(entity):
+		return "Unknown"
+	if entity.has_method("is_alive") and not entity.is_alive():
+		return "Destroyed"
+
+	var gather := entity.get_component(&"WorkerGatherComponent")
+	if gather != null and "state" in gather:
+		match int(gather.state):
+			1:
+				return "Moving"
+			2:
+				return "Harvesting"
+			3:
+				return "Carrying"
+			4:
+				return "Returning"
+			5:
+				return "Depositing"
+
+	var combat := entity.get_component(&"CombatComponent")
+	if combat != null and combat.has_method("has_valid_attack_target") and combat.has_valid_attack_target():
+		return "Attacking"
+
+	var movement := entity.get_component(&"MovementComponent")
+	if movement != null and movement.has_method("has_path") and movement.has_path():
+		return "Moving"
+
+	var production := entity.get_component(&"ProductionComponent")
+	if production != null and production.has_method("get_active_order") and production.get_active_order() != null:
+		return "Producing"
+
+	if _get_harvestable_component(entity) != null:
+		return "Resource"
+	return "Idle"
+
+func _is_building(entity: EntityBase) -> bool:
 	if entity == null or not is_instance_valid(entity):
 		return false
-	if entity.has_method("is_alive") and not entity.is_alive():
-		return false
-	return entity.has_method("get_team_id") and entity.get_team_id() == PLAYER_TEAM_ID and not entity.get_available_commands().is_empty()
+	return entity is BuildingBase or entity.is_in_group("selectable_buildings")
 
-func _show_single_selection_info(entity: EntityBase) -> void:
-	_selection_count_label.visible = false
-	_team_label.visible = true
-	_status_label.visible = true
-	_team_label.text = "Team: %s" % _get_team_display_name(entity)
-	_status_label.text = "Status: %s" % _get_selection_status(entity)
-
-func _show_multi_selection_info(commandable_entities: Array[EntityBase]) -> void:
-	_selection_count_label.visible = true
-	_team_label.visible = false
-	_status_label.visible = false
-	var non_commandable_count := _selected_entities.size() - commandable_entities.size()
-	_selection_count_label.text = "Selected: %d | Commandable: %d | Non-commandable: %d" % [
-		_selected_entities.size(),
-		commandable_entities.size(),
-		non_commandable_count,
-	]
-
-func _hide_scan_labels() -> void:
-	_selection_count_label.visible = false
-	_team_label.visible = false
-	_status_label.visible = false
-
-func _update_health_label(entity: EntityBase) -> void:
-	var health := entity.get_health_component()
-	if health == null:
-		_hide_health_label()
-		return
-	if _selected_health_component != health:
-		_disconnect_health_label()
-		_selected_health_component = health
-		health.health_changed.connect(_on_selected_health_changed)
-	_connect_worker_gather_label(entity)
-	_health_label.visible = true
-	_health_label.text = _format_health_and_cargo_info(entity, health)
-
-func _hide_health_label() -> void:
-	_disconnect_health_label()
-	_disconnect_worker_gather_label()
-	_health_label.visible = false
-
-func _disconnect_health_label() -> void:
-	if _selected_health_component != null and is_instance_valid(_selected_health_component):
-		if _selected_health_component.health_changed.is_connected(_on_selected_health_changed):
-			_selected_health_component.health_changed.disconnect(_on_selected_health_changed)
-	_selected_health_component = null
-
-func _on_selected_health_changed(current_health: float, max_health: float) -> void:
-	if _selected_entity != null and is_instance_valid(_selected_entity):
-		_health_label.text = _format_health_and_cargo_info(_selected_entity, _selected_health_component)
-	else:
-		_health_label.text = "HP: %.0f / %.0f" % [current_health, max_health]
-
-func _connect_worker_gather_label(entity: EntityBase) -> void:
-	var gather := entity.get_component(&"WorkerGatherComponent") if entity != null else null
-	if _selected_worker_gather_component == gather:
-		return
-	_disconnect_worker_gather_label()
-	_selected_worker_gather_component = gather
-	if gather != null and gather.has_signal("gather_changed"):
-		gather.gather_changed.connect(_on_selected_worker_gather_changed)
-
-func _disconnect_worker_gather_label() -> void:
-	if _selected_worker_gather_component != null and is_instance_valid(_selected_worker_gather_component):
-		if _selected_worker_gather_component.has_signal("gather_changed") and _selected_worker_gather_component.gather_changed.is_connected(_on_selected_worker_gather_changed):
-			_selected_worker_gather_component.gather_changed.disconnect(_on_selected_worker_gather_changed)
-	_selected_worker_gather_component = null
-
-func _on_selected_worker_gather_changed() -> void:
-	if _selected_entity == null or not is_instance_valid(_selected_entity) or _selected_health_component == null:
-		return
-	_health_label.text = _format_health_and_cargo_info(_selected_entity, _selected_health_component)
-
-func _format_health_and_cargo_info(entity: EntityBase, health: Node) -> String:
-	if health == null:
-		return ""
-	var lines: Array[String] = ["HP: %.0f / %.0f" % [health.current_health, health.max_health]]
-	var gather := entity.get_component(&"WorkerGatherComponent") if entity != null else null
-	if gather != null and gather.has_method("get_cargo_text"):
-		lines.append(gather.get_cargo_text())
-	return "\n".join(lines)
-
-func _update_harvestable_label(entity: EntityBase) -> void:
-	var harvestable := _get_harvestable_component(entity)
-	if harvestable == null:
-		_hide_harvestable_label()
-		return
-	if _selected_harvestable_component != harvestable:
-		_disconnect_harvestable_label()
-		_selected_harvestable_component = harvestable
-		if harvestable.has_signal("amount_changed"):
-			harvestable.amount_changed.connect(_on_selected_harvestable_amount_changed)
-	_health_label.visible = true
-	_health_label.text = _format_harvestable_info(harvestable)
-
-func _hide_harvestable_label() -> void:
-	_disconnect_harvestable_label()
-
-func _disconnect_harvestable_label() -> void:
-	if _selected_harvestable_component != null and is_instance_valid(_selected_harvestable_component):
-		if _selected_harvestable_component.has_signal("amount_changed") and _selected_harvestable_component.amount_changed.is_connected(_on_selected_harvestable_amount_changed):
-			_selected_harvestable_component.amount_changed.disconnect(_on_selected_harvestable_amount_changed)
-	_selected_harvestable_component = null
-
-func _on_selected_harvestable_amount_changed(_remaining_amount: int, _max_amount: int) -> void:
-	if _selected_harvestable_component == null or not is_instance_valid(_selected_harvestable_component):
-		_hide_harvestable_label()
-		return
-	_health_label.text = _format_harvestable_info(_selected_harvestable_component)
-
-func _format_harvestable_info(harvestable: Node) -> String:
-	var lines: Array[String] = [
-		"Resource: %s" % _get_resource_display_name(harvestable.get_resource_id()),
-		"Remaining: %d / %d" % [
-			harvestable.get_remaining_amount(),
-			harvestable.max_amount if "max_amount" in harvestable else harvestable.get_remaining_amount(),
-		],
-	]
-	if "requires_extractor" in harvestable and harvestable.requires_extractor:
-		lines.append("Requires Extractor: Yes")
-	return "\n".join(lines)
-
-func _update_production_info(entity: EntityBase) -> void:
-	var production := entity.get_component(&"ProductionComponent") if entity != null else null
-	if production == null:
-		_hide_production_info()
-		return
-	if _selected_production_component != production:
-		_disconnect_production_info()
-		_selected_production_component = production
-		if production.has_signal("production_changed"):
-			production.production_changed.connect(_on_selected_production_changed)
-	_show_production_info(production)
-
-func _show_production_info(production: Node) -> void:
-	_production_commands_label.visible = true
-	_active_production_label.visible = true
-	_production_progress.visible = true
-	_production_queue_label.visible = true
-	_production_queue_list_label.visible = true
-	_rally_point_label.visible = true
-
-	_production_commands_label.text = "Production: %s" % _format_available_recipes(production)
-	var active_order = production.get_active_order() if production.has_method("get_active_order") else null
-	if active_order != null and active_order.recipe != null:
-		_active_production_label.text = "Active: %s" % _get_recipe_display_name(active_order.recipe)
-	else:
-		_active_production_label.text = "Active: Idle"
-	var progress: float = production.get_progress_ratio() if production.has_method("get_progress_ratio") else 0.0
-	_production_progress.value = roundf(progress * 100.0)
-	_production_queue_label.text = "Queue: %d / %d" % [
-		production.get_queue_count() if production.has_method("get_queue_count") else 0,
-		production.queue_limit if "queue_limit" in production else 0,
-	]
-	_production_queue_list_label.text = "Queued: %s" % _format_queued_orders(production)
-	if "has_rally_point" in production and production.has_rally_point:
-		_rally_point_label.text = "Rally: %.1f, %.1f" % [production.rally_point.x, production.rally_point.z]
-	else:
-		_rally_point_label.text = "Rally: None"
-
-func _hide_production_info() -> void:
-	_disconnect_production_info()
-	_production_commands_label.visible = false
-	_active_production_label.visible = false
-	_production_progress.visible = false
-	_production_queue_label.visible = false
-	_production_queue_list_label.visible = false
-	_rally_point_label.visible = false
-
-func _disconnect_production_info() -> void:
-	if _selected_production_component != null and is_instance_valid(_selected_production_component):
-		if _selected_production_component.has_signal("production_changed") and _selected_production_component.production_changed.is_connected(_on_selected_production_changed):
-			_selected_production_component.production_changed.disconnect(_on_selected_production_changed)
-	_selected_production_component = null
-
-func _on_selected_production_changed() -> void:
-	if _selected_production_component == null or not is_instance_valid(_selected_production_component):
-		_hide_production_info()
-		return
-	_show_production_info(_selected_production_component)
+func _get_tile_text(entity: EntityBase) -> String:
+	var display_name := _get_entity_display_name(entity)
+	var words := display_name.split(" ", false)
+	if words.size() >= 2:
+		return "%s%s" % [words[0].left(1), words[1].left(1)]
+	return display_name.left(3)
 
 func _get_entity_display_name(entity: EntityBase) -> String:
+	if entity == null:
+		return "Unknown"
 	if entity.display_name.strip_edges() != "":
 		return entity.display_name
 	return entity.name
-
-func _format_available_recipes(production: Node) -> String:
-	if production == null or not production.has_method("get_available_recipes"):
-		return "None"
-	var names: Array[String] = []
-	for recipe in production.get_available_recipes():
-		if recipe != null:
-			names.append(_get_recipe_display_name(recipe))
-	return ", ".join(names) if not names.is_empty() else "None"
-
-func _format_queued_orders(production: Node) -> String:
-	if production == null or not production.has_method("get_queued_orders"):
-		return "Empty"
-	var names: Array[String] = []
-	for order in production.get_queued_orders():
-		if order != null and order.recipe != null:
-			names.append(_get_recipe_display_name(order.recipe))
-	return ", ".join(names) if not names.is_empty() else "Empty"
 
 func _get_recipe_display_name(recipe: Resource) -> String:
 	if recipe == null:
@@ -311,41 +378,14 @@ func _get_recipe_display_name(recipe: Resource) -> String:
 		return String(recipe.id)
 	return "Unknown"
 
-func _get_team_display_name(entity: EntityBase) -> String:
-	if entity == null or not is_instance_valid(entity):
-		return "Unknown"
-	match entity.get_team_id():
-		0:
-			return "Neutral"
-		1:
-			return "Player"
-		2:
-			return "Enemy"
-		_:
-			return "Team %d" % entity.get_team_id()
-
-func _get_selection_status(entity: EntityBase) -> String:
-	if entity == null or not is_instance_valid(entity) or not entity.has_method("get_team_id"):
-		return "Unknown"
-	if _get_harvestable_component(entity) != null:
-		return "Neutral / Resource"
-	var team_id: int = entity.get_team_id()
-	if team_id == PLAYER_TEAM_ID:
-		return "Owned"
-	if team_id == 0:
-		return "Neutral"
-	return "Hostile" if team_id != PLAYER_TEAM_ID else "Unknown"
+func _get_recipe_chip_text(recipe: Resource) -> String:
+	var display_name := _get_recipe_display_name(recipe)
+	var words := display_name.split(" ", false)
+	if words.size() >= 2:
+		return "%s%s" % [words[0].left(1), words[1].left(1)]
+	return display_name.left(3)
 
 func _get_harvestable_component(entity: EntityBase) -> Node:
 	if entity == null or not is_instance_valid(entity):
 		return null
 	return entity.get_component(&"HarvestableComponent")
-
-func _get_resource_display_name(resource_id: StringName) -> String:
-	match resource_id:
-		&"crystals":
-			return "Crystals"
-		&"he3":
-			return "He3"
-		_:
-			return String(resource_id).capitalize()

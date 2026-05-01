@@ -1,14 +1,14 @@
-extends PanelContainer
+extends Control
 class_name BottomBar
 
 signal command_targeting_requested(source_entities: Array[EntityBase], command_id: StringName, target_mode: int)
 signal command_executed
 
-@onready var _selection_panel: Node = $MarginContainer/HBoxContainer/SelectionPanel
-@onready var _action_grid: Node = $MarginContainer/HBoxContainer/ActionGrid
+@onready var _selection_panel: Node = $SelectionPanel
+@onready var _action_grid: Node = $ActionGrid
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_action_grid.command_targeting_requested.connect(_on_command_targeting_requested)
 	_action_grid.command_executed.connect(_on_command_executed)
 

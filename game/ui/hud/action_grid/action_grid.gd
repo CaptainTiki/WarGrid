@@ -39,9 +39,9 @@ func _create_slots() -> void:
 	_slot_commands.clear()
 	for i in range(SLOT_COUNT):
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(52.0, 16.0)
-		button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		button.custom_minimum_size = Vector2(48.0, 38.0)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		button.clip_text = true
 		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		button.disabled = true

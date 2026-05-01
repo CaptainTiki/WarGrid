@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://game/ui/hud/selection_panel/selection_panel.gd" id="1_selection_panel"]
 
 [node name="SelectionPanel" type="Control"]
+custom_minimum_size = Vector2(0, 96)
 clip_contents = true
 mouse_filter = 0
 script = ExtResource("1_selection_panel")
@@ -27,64 +28,164 @@ theme_override_constants/margin_top = 5
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 5
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="SelectedEntityLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="EmptySelectionLabel" type="Label" parent="MarginContainer"]
 layout_mode = 2
 text = "No selection"
+vertical_alignment = 1
 
-[node name="SelectionCountLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="SingleSelection" type="HBoxContainer" parent="MarginContainer"]
 visible = false
 layout_mode = 2
-text = "Selected: 0"
+theme_override_constants/separation = 8
 
-[node name="TeamLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-visible = false
+[node name="PortraitButton" type="Button" parent="MarginContainer/SingleSelection"]
+custom_minimum_size = Vector2(72, 72)
 layout_mode = 2
-text = "Team: Unknown"
+mouse_filter = 2
+text = "?"
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="StatusLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-visible = false
+[node name="Details" type="VBoxContainer" parent="MarginContainer/SingleSelection"]
 layout_mode = 2
-text = "Status: Unknown"
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
 
-[node name="HealthLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-visible = false
+[node name="SelectedEntityLabel" type="Label" parent="MarginContainer/SingleSelection/Details"]
 layout_mode = 2
-text = "HP: 100 / 100"
-autowrap_mode = 2
+size_flags_horizontal = 3
+text = "Unit"
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="ProductionCommandsLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-visible = false
+[node name="StatusLabel" type="Label" parent="MarginContainer/SingleSelection/Details"]
 layout_mode = 2
-text = "Production: None"
-autowrap_mode = 2
+size_flags_horizontal = 3
+text = "Idle"
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="ActiveProductionLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-visible = false
+[node name="HealthRow" type="HBoxContainer" parent="MarginContainer/SingleSelection/Details"]
 layout_mode = 2
-text = "Active: Idle"
+theme_override_constants/separation = 6
 
-[node name="ProductionProgress" type="ProgressBar" parent="MarginContainer/VBoxContainer"]
-visible = false
-custom_minimum_size = Vector2(0, 14)
+[node name="HealthLabel" type="Label" parent="MarginContainer/SingleSelection/Details/HealthRow"]
+custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
+text = "HP"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="HealthBar" type="ProgressBar" parent="MarginContainer/SingleSelection/Details/HealthRow"]
+custom_minimum_size = Vector2(110, 12)
+layout_mode = 2
+size_flags_horizontal = 3
 show_percentage = false
 
-[node name="ProductionQueueLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="ActiveProductionLabel" type="Label" parent="MarginContainer/SingleSelection/Details"]
 visible = false
 layout_mode = 2
-text = "Queue: 0 / 0"
+size_flags_horizontal = 3
+text = "Active: Idle"
+clip_text = true
+text_overrun_behavior = 3
 
-[node name="ProductionQueueListLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="ProductionProgress" type="ProgressBar" parent="MarginContainer/SingleSelection/Details"]
 visible = false
+custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
-text = "Queued: Empty"
-autowrap_mode = 2
+size_flags_horizontal = 3
+show_percentage = false
 
-[node name="RallyPointLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="BuildingSelection" type="HBoxContainer" parent="MarginContainer"]
 visible = false
 layout_mode = 2
-text = "Rally: None"
+theme_override_constants/separation = 10
+
+[node name="IdentityBlock" type="Button" parent="MarginContainer/BuildingSelection"]
+custom_minimum_size = Vector2(72, 72)
+layout_mode = 2
+mouse_filter = 2
+text = "B"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="BuildingInfoBlock" type="VBoxContainer" parent="MarginContainer/BuildingSelection"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="BuildingNameLabel" type="Label" parent="MarginContainer/BuildingSelection/BuildingInfoBlock"]
+layout_mode = 2
+text = "Building"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="BuildingStatusLabel" type="Label" parent="MarginContainer/BuildingSelection/BuildingInfoBlock"]
+layout_mode = 2
+text = "Idle"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="BuildingHealthLabel" type="Label" parent="MarginContainer/BuildingSelection/BuildingInfoBlock"]
+layout_mode = 2
+text = "HP: --"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="ProductionInfoBlock" type="VBoxContainer" parent="MarginContainer/BuildingSelection"]
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="BuildingProductionLabel" type="Label" parent="MarginContainer/BuildingSelection/ProductionInfoBlock"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "No active production"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="BuildingProductionProgress" type="ProgressBar" parent="MarginContainer/BuildingSelection/ProductionInfoBlock"]
+custom_minimum_size = Vector2(120, 12)
+layout_mode = 2
+size_flags_horizontal = 3
+show_percentage = false
+
+[node name="QueueRow" type="HBoxContainer" parent="MarginContainer/BuildingSelection/ProductionInfoBlock"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="QueueLabel" type="Label" parent="MarginContainer/BuildingSelection/ProductionInfoBlock/QueueRow"]
+layout_mode = 2
+text = "Queue:"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="QueueChips" type="HBoxContainer" parent="MarginContainer/BuildingSelection/ProductionInfoBlock/QueueRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="MultiSelection" type="VBoxContainer" parent="MarginContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="MultiHeaderLabel" type="Label" parent="MarginContainer/MultiSelection"]
+layout_mode = 2
+text = "0 units | Idle"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="TileScroll" type="ScrollContainer" parent="MarginContainer/MultiSelection"]
+custom_minimum_size = Vector2(0, 58)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+vertical_scroll_mode = 0
+
+[node name="TileRow" type="HBoxContainer" parent="MarginContainer/MultiSelection/TileScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
