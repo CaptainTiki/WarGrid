@@ -81,47 +81,78 @@ func _verify_runtime_spawn_and_gather(wallet: Node) -> void:
 	if not workers.is_empty() and crystal != null:
 		var worker := workers[0]
 		var crystal_harvestable := crystal.get_component(&"HarvestableComponent") as HarvestableComponent
-		_expect(worker.execute_command(&"gather", {"target_entity": crystal}), "worker accepts crystal gather command")
-		_advance_entities(entities_root, 5.0)
-		_expect(crystal_harvestable.get_remaining_amount() < 150, "crystal amount decreases after worker harvest")
-		_expect(wallet == null or wallet.get_amount(&"crystals") > 500, "worker deposits crystals into wallet")
+		var before_amount := crystal_harvestable.get_remaining_amount()
+		var before_wallet: int = wallet.get_amount(&"crystals") if wallet != null else 0
+		_expect(worker.execute_command(&"gather", {"target_position": crystal.global_position + Vector3(1.5, 0.0, 0.0), "terrain": level.terrain}), "worker accepts crystal gather location")
+		_advance_entities(entities_root, 0.1)
+		var gather_state := worker.get_component(&"WorkerGatherComponent") as WorkerGatherComponent
+		_expect(gather_state != null and gather_state.state != WorkerGatherComponent.GatherState.IDLE, "gather command changes worker gather state")
+		_advance_until(entities_root, 8.0, func() -> bool:
+			return wallet != null and wallet.get_amount(&"crystals") >= before_wallet + 1
+		)
+		_expect(crystal_harvestable.get_remaining_amount() == before_amount - 1, "crystal amount decreases by exactly one per trip")
+		_expect(wallet == null or wallet.get_amount(&"crystals") == before_wallet + 1, "worker deposits exactly one crystal into wallet")
 		var gather := worker.get_component(&"WorkerGatherComponent") as WorkerGatherComponent
-		_expect(gather != null and gather.get_cargo_text().begins_with("Cargo:"), "worker cargo UI helper reports empty after deposit cycle")
+		_expect(gather != null and gather.get_cargo_text() == "Cargo: Empty", "worker cargo UI helper reports empty after deposit cycle")
+
+	if not workers.is_empty() and crystal != null:
+		var worker := workers[0]
+		var gather := worker.get_component(&"WorkerGatherComponent") as WorkerGatherComponent
+		var before_wallet: int = wallet.get_amount(&"crystals") if wallet != null else 0
+		_expect(worker.execute_command(&"gather", {"target_position": crystal.global_position, "terrain": level.terrain}), "worker accepts exact crystal position as gather area")
+		_advance_entities(entities_root, 0.1)
+		_expect(gather != null and gather.has_gather_location, "exact crystal gather area is stored")
+		_advance_until(entities_root, 8.0, func() -> bool:
+			return wallet != null and wallet.get_amount(&"crystals") >= before_wallet + 1
+		)
+		_expect(wallet == null or wallet.get_amount(&"crystals") >= before_wallet + 1, "exact crystal gather area completes a deposit")
 
 	if not workers.is_empty() and he3 != null:
 		_expect(not workers[0].execute_command(&"gather", {"target_entity": he3}), "worker rejects he3 gather for now")
 
 	if workers.size() >= 2 and crystal != null:
 		var before := (crystal.get_component(&"HarvestableComponent") as HarvestableComponent).get_remaining_amount()
-		_expect(workers[0].execute_command(&"gather", {"target_entity": crystal}), "first worker accepts shared crystal")
-		_expect(workers[1].execute_command(&"gather", {"target_entity": crystal}), "second worker accepts shared crystal")
-		_advance_entities(entities_root, 5.0)
+		var before_wallet: int = wallet.get_amount(&"crystals") if wallet != null else 0
+		_expect(workers[0].execute_command(&"gather", {"target_position": crystal.global_position, "terrain": level.terrain}), "first worker accepts shared crystal area")
+		_expect(workers[1].execute_command(&"gather", {"target_position": crystal.global_position, "terrain": level.terrain}), "second worker accepts shared crystal area")
+		_advance_until(entities_root, 8.0, func() -> bool:
+			return wallet != null and wallet.get_amount(&"crystals") >= before_wallet + 2
+		)
 		var after := (crystal.get_component(&"HarvestableComponent") as HarvestableComponent).get_remaining_amount()
-		_expect(after <= before - 20, "multiple workers reduce shared crystal by at least two loads")
+		_expect(after <= before - 2, "multiple workers reduce shared crystal by at least two one-crystal trips")
 
 	if not workers.is_empty() and crystal != null:
 		var worker := workers[0]
 		var harvestable := crystal.get_component(&"HarvestableComponent") as HarvestableComponent
-		harvestable.remaining_amount = 10
+		var replacement_crystal := _spawn_catalog_entity(level, &"tritanium_crystal_node", crystal.global_position + Vector3(1.8, 0.0, 0.0), 0)
+		var replacement_harvestable := replacement_crystal.get_component(&"HarvestableComponent") as HarvestableComponent
+		var replacement_before := replacement_harvestable.get_remaining_amount()
+		harvestable.remaining_amount = 1
 		harvestable.depleted_state = false
-		_expect(worker.execute_command(&"gather", {"target_entity": crystal}), "worker accepts nearly depleted crystal")
-		_advance_entities(entities_root, 5.0)
+		_expect(worker.execute_command(&"gather", {"target_position": crystal.global_position, "terrain": level.terrain}), "worker accepts nearly depleted crystal field")
+		_advance_until(entities_root, 8.0, func() -> bool:
+			return harvestable.is_depleted()
+		)
 		_expect(harvestable.get_remaining_amount() == 0, "crystal can be harvested to zero")
 		_expect(harvestable.is_depleted(), "crystal marks depleted safely")
+		_advance_until(entities_root, 10.0, func() -> bool:
+			return replacement_harvestable.get_remaining_amount() < replacement_before
+		)
+		_expect(replacement_harvestable.get_remaining_amount() == replacement_before - 1, "worker finds another nearby crystal after depletion")
 
 	if not workers.is_empty():
 		var worker := workers[0]
 		var far_crystal := _spawn_catalog_entity(level, &"tritanium_crystal_node", Vector3(140.0, 0.0, 128.0), 0)
 		var harvestable := far_crystal.get_component(&"HarvestableComponent") as HarvestableComponent
-		_expect(worker.execute_command(&"gather", {"target_entity": far_crystal}), "worker starts gather before stop")
+		_expect(worker.execute_command(&"gather", {"target_position": far_crystal.global_position, "terrain": level.terrain}), "worker starts gather before stop")
 		_expect(worker.execute_command(&"stop", {}), "stop command succeeds during gather")
 		_advance_entities(entities_root, 2.0)
 		_expect(harvestable.get_remaining_amount() == 150, "stop prevents later harvest")
 
-		_expect(worker.execute_command(&"gather", {"target_entity": far_crystal}), "worker starts gather before move")
+		_expect(worker.execute_command(&"gather", {"target_position": far_crystal.global_position, "terrain": level.terrain}), "worker starts gather before move")
 		_expect(worker.execute_command(&"move", {"target_position": Vector3(126.0, 0.0, 124.0), "terrain": level.terrain}), "move command succeeds during gather")
 		var gather := worker.get_component(&"WorkerGatherComponent") as WorkerGatherComponent
-		_expect(gather.current_target == null, "move clears gather target")
+		_expect(gather.current_target == null and not gather.has_gather_location, "move clears gather assignment")
 
 	level.free()
 
@@ -165,6 +196,14 @@ func _advance_entities(entities_root: Node, seconds: float) -> void:
 			var gather := entity.get_component(&"WorkerGatherComponent") if entity is EntityBase else null
 			if gather != null:
 				gather._process(0.1)
+		elapsed += 0.1
+
+func _advance_until(entities_root: Node, seconds: float, predicate: Callable) -> void:
+	var elapsed := 0.0
+	while elapsed < seconds:
+		if predicate.call():
+			return
+		_advance_entities(entities_root, 0.1)
 		elapsed += 0.1
 
 func _make_level(placements: Array) -> Level:

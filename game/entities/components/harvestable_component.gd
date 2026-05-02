@@ -36,6 +36,12 @@ func harvest_amount(requested_amount: int) -> int:
 		_mark_depleted()
 	return harvested
 
+func has_available_resource() -> bool:
+	return can_harvest()
+
+func harvest_one() -> bool:
+	return harvest_amount(1) == 1
+
 func get_remaining_amount() -> int:
 	return remaining_amount
 

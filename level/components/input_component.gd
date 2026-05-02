@@ -160,10 +160,18 @@ func _handle_targeting_left_click(camera: Camera3D, screen_pos: Vector2) -> void
 	if _target_source_entities.is_empty():
 		_cancel_targeting()
 		return
+	var target_entity := _raycast_entity(camera, screen_pos)
+	if _target_command_id == &"gather" and target_entity != null and _is_harvestable_target(target_entity):
+		_execute_command_on_entities(_target_source_entities, _target_command_id, {
+			"target_position": target_entity.global_position,
+			"terrain": _terrain,
+		})
+		_cancel_targeting()
+		return
 	if _target_mode == CommandBase.TargetMode.POINT or _target_mode == CommandBase.TargetMode.AREA:
 		_execute_point_target_command(camera, screen_pos)
 	elif _target_mode == CommandBase.TargetMode.ENTITY:
-		_execute_entity_target_command(camera, screen_pos)
+		_execute_entity_target_command(camera, screen_pos, target_entity)
 	else:
 		_cancel_targeting()
 
@@ -184,8 +192,9 @@ func _execute_point_target_command(camera: Camera3D, screen_pos: Vector2) -> voi
 		})
 	_cancel_targeting()
 
-func _execute_entity_target_command(camera: Camera3D, screen_pos: Vector2) -> void:
-	var target_entity := _raycast_entity(camera, screen_pos)
+func _execute_entity_target_command(camera: Camera3D, screen_pos: Vector2, target_entity: EntityBase = null) -> void:
+	if target_entity == null:
+		target_entity = _raycast_entity(camera, screen_pos)
 	if target_entity == null:
 		return
 	if _target_command_id == &"attack" and not _can_any_source_attack_target(_target_source_entities, target_entity):
@@ -263,7 +272,8 @@ func _handle_right_click_entity_target(commandable_entities: Array[EntityBase], 
 			print("Right-click resource target ignored: no selected workers can gather.")
 			return
 		_execute_command_on_entities(gatherers, &"gather", {
-			"target_entity": target_entity,
+			"target_position": target_entity.global_position,
+			"terrain": _terrain,
 		})
 		return
 	if _can_any_source_attack_target(commandable_entities, target_entity):
@@ -286,7 +296,8 @@ func _can_any_source_attack_target(source_entities: Array[EntityBase], target_en
 func _is_harvestable_target(target_entity: EntityBase) -> bool:
 	if target_entity == null or not is_instance_valid(target_entity):
 		return false
-	return target_entity.get_component(&"HarvestableComponent") != null
+	var harvestable := target_entity.get_component(&"HarvestableComponent")
+	return harvestable != null and harvestable.get_resource_id() == &"crystals" and harvestable.can_harvest()
 
 func _get_commandable_selection(entities: Array[EntityBase]) -> Array[EntityBase]:
 	var commandable_entities: Array[EntityBase] = []

@@ -99,6 +99,7 @@ commands = Array[ExtResource("9_cmdbase")]([SubResource("Resource_move"), SubRes
 [node name="WorkerGatherComponent" type="Node" parent="Components"]
 script = ExtResource("12_gather_comp")
 entity_parent = NodePath("../..")
+carry_capacity = 1
 
 [node name="EntityFootprintComponent" type="Node" parent="Components"]
 script = ExtResource("10_footprint")

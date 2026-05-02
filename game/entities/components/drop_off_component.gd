@@ -13,6 +13,17 @@ func _ready() -> void:
 func accepts_resource(resource_id: StringName) -> bool:
 	return accepts_resource_ids.has(resource_id)
 
+func deposit_resource(team_id: int, resource_id: StringName, amount: int) -> bool:
+	if amount <= 0 or not accepts_resource(resource_id):
+		return false
+	var entity := get_entity_parent()
+	if entity == null or not is_instance_valid(entity) or entity.get_team_id() != team_id:
+		return false
+	var wallet := get_node_or_null("/root/ResourceManager")
+	if wallet != null and wallet.has_method("add_resource"):
+		wallet.add_resource(resource_id, amount)
+	return true
+
 func get_entity_parent() -> EntityBase:
 	var entity := get_node_or_null(entity_parent) as EntityBase
 	if entity != null:

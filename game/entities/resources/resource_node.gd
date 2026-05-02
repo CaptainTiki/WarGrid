@@ -10,6 +10,7 @@ func _ready() -> void:
 	$ClickArea.add_to_group("entity_clickable")
 	var harvestable := get_component(&"HarvestableComponent")
 	if harvestable != null and harvestable.has_signal("depleted"):
+		add_to_group("harvestable_resources")
 		harvestable.depleted.connect(_on_harvestable_depleted)
 
 func set_selected(value: bool) -> void:

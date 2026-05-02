@@ -149,7 +149,7 @@ func _set_health_values(entity: EntityBase, health: Node) -> void:
 	var gather := entity.get_component(&"WorkerGatherComponent") if entity != null else null
 	if gather != null and gather.has_method("get_cargo_text"):
 		var cargo_text: String = gather.get_cargo_text()
-		if cargo_text.strip_edges() != "":
+		if cargo_text.strip_edges() != "" and cargo_text != "Cargo: Empty":
 			_status_label.text = "%s | %s" % [_get_entity_status(entity), cargo_text]
 
 func _on_selected_health_changed(_current_health: float, _max_health: float) -> void:
@@ -326,13 +326,17 @@ func _get_entity_status(entity: EntityBase) -> String:
 			1:
 				return "Moving"
 			2:
-				return "Harvesting"
+				return "Searching"
 			3:
-				return "Carrying"
+				return "Moving"
 			4:
-				return "Returning"
+				return "Harvesting"
 			5:
+				return "Returning Cargo"
+			6:
 				return "Depositing"
+			7:
+				return "Returning"
 
 	var combat := entity.get_component(&"CombatComponent")
 	if combat != null and combat.has_method("has_valid_attack_target") and combat.has_valid_attack_target():
