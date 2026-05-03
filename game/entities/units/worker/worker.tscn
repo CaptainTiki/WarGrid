@@ -87,6 +87,12 @@ shape = SubResource("CapsuleShape_click")
 [node name="MovementComponent" type="Node3D" parent="Components"]
 script = ExtResource("2_mvmnt")
 speed = 4.25
+separation_radius = 2.0
+separation_strength = 14.0
+separation_power = 1.4
+max_separation_push_per_frame = 0.7
+idle_push_multiplier = 1.5
+moving_push_multiplier = 0.85
 move_root_path = NodePath("../..")
 
 [node name="TerrainFinder" parent="Components/MovementComponent" instance=ExtResource("3_tfndr")]

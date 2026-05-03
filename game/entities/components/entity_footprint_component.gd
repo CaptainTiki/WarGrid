@@ -30,3 +30,9 @@ func get_separation_radius() -> float:
 	if shape == Shape.CIRCLE:
 		return radius
 	return half_extents.length()
+
+func is_hard_blocker() -> bool:
+	return blocks_units and (is_static or blocks_pathfinding)
+
+func is_soft_unit_blocker() -> bool:
+	return blocks_units and participates_in_separation and not is_static and not blocks_pathfinding

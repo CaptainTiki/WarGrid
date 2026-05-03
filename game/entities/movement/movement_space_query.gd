@@ -5,7 +5,8 @@ static func is_circle_space_clear(
 		world_position: Vector3,
 		radius: float,
 		terrain: Terrain,
-		ignore_entity: EntityBase = null
+		ignore_entity: EntityBase = null,
+		include_dynamic_units: bool = true
 ) -> bool:
 	if terrain != null:
 		if terrain.runtime_state != null:
@@ -17,7 +18,7 @@ static func is_circle_space_clear(
 				return false
 	for node in _get_entity_footprints():
 		var footprint := node as EntityFootprintComponent
-		if footprint == null or not footprint.blocks_units:
+		if not _should_block_space_query(footprint, include_dynamic_units):
 			continue
 		var entity := footprint.get_entity_parent()
 		if entity == null or not is_instance_valid(entity) or entity == ignore_entity:
@@ -34,10 +35,11 @@ static func find_nearest_open_position(
 		search_radius: float,
 		terrain: Terrain,
 		ignore_entity: EntityBase = null,
-		search_step: float = 1.0
+		search_step: float = 1.0,
+		include_dynamic_units: bool = true
 ):
 	var checked_origin := snap_world_position_to_terrain(origin, terrain)
-	if is_circle_space_clear(checked_origin, radius, terrain, ignore_entity):
+	if is_circle_space_clear(checked_origin, radius, terrain, ignore_entity, include_dynamic_units):
 		return checked_origin
 
 	var step := maxf(search_step, maxf(radius * 2.0, 0.25))
@@ -48,7 +50,7 @@ static func find_nearest_open_position(
 			var angle := TAU * float(i) / float(sample_count)
 			var candidate := origin + Vector3(cos(angle) * ring_radius, 0.0, sin(angle) * ring_radius)
 			candidate = snap_world_position_to_terrain(candidate, terrain)
-			if is_circle_space_clear(candidate, radius, terrain, ignore_entity):
+			if is_circle_space_clear(candidate, radius, terrain, ignore_entity, include_dynamic_units):
 				return candidate
 		ring_radius += step
 	return null
@@ -65,6 +67,13 @@ static func _get_entity_footprints() -> Array[Node]:
 	if tree == null:
 		return []
 	return tree.get_nodes_in_group("entity_footprints")
+
+static func _should_block_space_query(footprint: EntityFootprintComponent, include_dynamic_units: bool) -> bool:
+	if footprint == null or not footprint.blocks_units:
+		return false
+	if footprint.is_hard_blocker():
+		return true
+	return include_dynamic_units and footprint.is_soft_unit_blocker()
 
 static func _does_circle_overlap_footprint(
 		position: Vector3,

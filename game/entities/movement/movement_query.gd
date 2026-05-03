@@ -9,7 +9,8 @@ static func is_direct_route_walkable(
 		end_world: Vector3,
 		sample_spacing: float = 1.0,
 		radius: float = 0.0,
-		ignore_entity: EntityBase = null
+		ignore_entity: EntityBase = null,
+		include_dynamic_units: bool = false
 ) -> bool:
 	if terrain == null:
 		return false
@@ -32,6 +33,6 @@ static func is_direct_route_walkable(
 			var sample_local: Vector3 = terrain.to_local(sample_world)
 			if not terrain.is_ground_walkable_at_local_position(sample_local):
 				return false
-		if radius > 0.0 and not MovementSpaceQuery.is_circle_space_clear(sample_world, radius, terrain, ignore_entity):
+		if radius > 0.0 and not MovementSpaceQuery.is_circle_space_clear(sample_world, radius, terrain, ignore_entity, include_dynamic_units):
 			return false
 	return true

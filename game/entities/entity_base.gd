@@ -52,6 +52,9 @@ func has_command(command_id: StringName) -> bool:
 func get_footprint_component() -> Node:
 	return get_component(&"EntityFootprintComponent")
 
+func get_movement_component() -> MovementComponent:
+	return get_component(&"MovementComponent") as MovementComponent
+
 func get_footprint_radius() -> float:
 	var footprint := get_footprint_component()
 	if footprint == null:
