@@ -86,6 +86,6 @@ remaining_amount = 150
 max_amount = 150
 harvest_amount_per_load = 10
 harvest_time = 1.0
-allow_multiple_workers = true
+allow_multiple_workers = false
 requires_extractor = false
 worker_slot_limit = 0

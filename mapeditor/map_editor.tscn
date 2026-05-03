@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://cxvik22bgj68c"]
+[gd_scene format=3 uid="uid://cxvik22bgj68c"]
 
 [ext_resource type="Script" uid="uid://c4nptwishxfly" path="res://mapeditor/map_editor.gd" id="1_qvbsr"]
 [ext_resource type="Script" uid="uid://cmxlihyhms710" path="res://terrain/terrain.gd" id="2_w3mjr"]
@@ -10,26 +10,49 @@ script = ExtResource("1_qvbsr")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1933503567]
 
-[node name="EditorMenuBar" parent="CanvasLayer" unique_id=521268037 instance=ExtResource("5_3fgqi")]
-
-[node name="RightDockContainer" type="Control" parent="CanvasLayer" unique_id=740897651]
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -280.0
-offset_top = 32.0
-grow_horizontal = 0
-grow_vertical = 2
-
 [node name="OverwriteMapDialog" type="ConfirmationDialog" parent="CanvasLayer" unique_id=2103212805]
+unique_name_in_owner = true
+oversampling_override = 1.0
 title = "Overwrite Current Map?"
+size = Vector2i(466, 100)
 ok_button_text = "Create / Reset Map"
 dialog_text = "Creating a new map will replace the current unsaved map."
 
 [node name="PreferencesDialog" type="AcceptDialog" parent="CanvasLayer" unique_id=129827181]
+unique_name_in_owner = true
+oversampling_override = 1.0
 title = "Preferences"
+size = Vector2i(331, 100)
 dialog_text = "Preferences will be added in a later pass."
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer" unique_id=1388565782]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="EditorMenuBar" parent="CanvasLayer/VBoxContainer" unique_id=521268037 instance=ExtResource("5_3fgqi")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/VBoxContainer" unique_id=1692863342]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Spacer" type="Control" parent="CanvasLayer/VBoxContainer/HBoxContainer" unique_id=1151084188]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.8
+mouse_filter = 2
+
+[node name="ToolDockContainer" type="Control" parent="CanvasLayer/VBoxContainer/HBoxContainer" unique_id=1568755519]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.2
 
 [node name="Terrain" type="Node3D" parent="." unique_id=1427965974]
 script = ExtResource("2_w3mjr")

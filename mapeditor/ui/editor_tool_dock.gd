@@ -11,8 +11,6 @@ signal buildable_value_changed(value: int)
 signal fow_height_changed(height: int)
 signal overlay_enabled_changed(enabled: bool)
 signal overlay_mode_changed(mode: int)
-signal save_map_requested
-signal load_map_requested
 
 const TOOL_HEIGHT := 0
 const TOOL_SMOOTH := 1
@@ -48,8 +46,6 @@ const TOOL_FOW_HEIGHT_PAINT := 6
 @onready var fow_height_option: OptionButton = %FowHeightOption
 @onready var overlay_enabled_check_box: CheckBox = %OverlayEnabledCheckBox
 @onready var overlay_mode_option: OptionButton = %OverlayModeOption
-@onready var save_button: Button = %SaveButton
-@onready var load_button: Button = %LoadButton
 
 var _active_tool := TOOL_HEIGHT
 var _syncing := false
@@ -71,8 +67,6 @@ func _ready() -> void:
 	fow_height_option.item_selected.connect(_on_fow_height_selected)
 	overlay_enabled_check_box.toggled.connect(_on_overlay_enabled_toggled)
 	overlay_mode_option.item_selected.connect(_on_overlay_mode_selected)
-	save_button.pressed.connect(_on_save_pressed)
-	load_button.pressed.connect(_on_load_pressed)
 	_configure_material_channel_option()
 	_configure_walkable_value_option()
 	_configure_buildable_value_option()
@@ -285,9 +279,3 @@ func _set_continuous_brush_controls_enabled(enabled: bool) -> void:
 
 func _is_categorical_paint_tool(tool_id: int) -> bool:
 	return tool_id == TOOL_WALKABLE_PAINT or tool_id == TOOL_BUILDABLE_PAINT or tool_id == TOOL_FOW_HEIGHT_PAINT
-
-func _on_save_pressed() -> void:
-	save_map_requested.emit()
-
-func _on_load_pressed() -> void:
-	load_map_requested.emit()

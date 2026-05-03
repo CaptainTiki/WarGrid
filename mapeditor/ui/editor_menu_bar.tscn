@@ -1,104 +1,159 @@
 [gd_scene format=3 uid="uid://dk5khjpy33l6a"]
 
-[ext_resource type="Script" path="res://mapeditor/ui/editor_menu_bar.gd" id="1_iq5xu"]
+[ext_resource type="Script" uid="uid://b43cimx7677ll" path="res://mapeditor/ui/editor_menu_bar.gd" id="1_iq5xu"]
+[ext_resource type="Theme" path="res://mapeditor/ui/editor_theme.tres" id="2_theme"]
 
-[node name="EditorMenuBar" type="PanelContainer"]
+[node name="EditorMenuBar" type="PanelContainer" unique_id=1358924321]
 anchors_preset = 10
 anchor_right = 1.0
-offset_bottom = 32.0
+offset_bottom = 42.0
 grow_horizontal = 2
+theme = ExtResource("2_theme")
 script = ExtResource("1_iq5xu")
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=202748181]
 layout_mode = 2
-theme_override_constants/margin_left = 6
-theme_override_constants/margin_top = 3
-theme_override_constants/margin_right = 6
-theme_override_constants/margin_bottom = 3
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 1
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 1
 
-[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1322666416]
 layout_mode = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 2
 
-[node name="FileMenuButton" type="MenuButton" parent="MarginContainer/HBoxContainer"]
+[node name="MenuRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1971897198]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="FileMenuButton" type="MenuButton" parent="MarginContainer/VBoxContainer/MenuRow" unique_id=233307421]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(34, 16)
 layout_mode = 2
+theme_override_font_sizes/font_size = 9
 text = "File"
 
-[node name="EditMenuButton" type="MenuButton" parent="MarginContainer/HBoxContainer"]
+[node name="EditMenuButton" type="MenuButton" parent="MarginContainer/VBoxContainer/MenuRow" unique_id=886890600]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(34, 16)
 layout_mode = 2
+theme_override_font_sizes/font_size = 9
 text = "Edit"
 
-[node name="ToolSeparator" type="VSeparator" parent="MarginContainer/HBoxContainer"]
-layout_mode = 2
-
-[node name="TerrainButton" type="Button" parent="MarginContainer/HBoxContainer"]
+[node name="ViewMenuButton" type="MenuButton" parent="MarginContainer/VBoxContainer/MenuRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(84, 24)
+custom_minimum_size = Vector2(38, 16)
 layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "View"
+
+[node name="MenuSpacer" type="Control" parent="MarginContainer/VBoxContainer/MenuRow" unique_id=1573366022]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CloseButton" type="Button" parent="MarginContainer/VBoxContainer/MenuRow" unique_id=1528411621]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(20, 16)
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+text = "X"
+
+[node name="ModeRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=51792705]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="TerrainButton" type="Button" parent="MarginContainer/VBoxContainer/ModeRow" unique_id=2106529038]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(58, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
 toggle_mode = true
 button_pressed = true
 text = "Terrain"
 
-[node name="EntitiesButton" type="Button" parent="MarginContainer/HBoxContainer"]
+[node name="EntitiesButton" type="Button" parent="MarginContainer/VBoxContainer/ModeRow" unique_id=232636095]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(84, 24)
+custom_minimum_size = Vector2(60, 20)
 layout_mode = 2
+theme_override_font_sizes/font_size = 10
 toggle_mode = true
 text = "Entities"
 
-[node name="Spacer" type="Control" parent="MarginContainer/HBoxContainer"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="CloseButton" type="Button" parent="MarginContainer/HBoxContainer"]
+[node name="ResourcesButton" type="Button" parent="MarginContainer/VBoxContainer/ModeRow" unique_id=1881664817]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(28, 24)
+custom_minimum_size = Vector2(72, 20)
 layout_mode = 2
-text = "X"
+theme_override_font_sizes/font_size = 10
+toggle_mode = true
+text = "Resources"
 
-[node name="NewMapDialog" type="ConfirmationDialog" parent="."]
+[node name="RegionsButton" type="Button" parent="MarginContainer/VBoxContainer/ModeRow" unique_id=1411226051]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(58, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+toggle_mode = true
+text = "Regions"
+
+[node name="TriggersButton" type="Button" parent="MarginContainer/VBoxContainer/ModeRow" unique_id=410374873]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(62, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+toggle_mode = true
+text = "Triggers"
+
+[node name="DebugButton" type="Button" parent="MarginContainer/VBoxContainer/ModeRow" unique_id=1556227852]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(52, 20)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+toggle_mode = true
+text = "Debug"
+
+[node name="NewMapDialog" type="ConfirmationDialog" parent="." unique_id=2028962359]
+unique_name_in_owner = true
+oversampling_override = 1.0
 title = "New Map"
+size = Vector2i(316, 140)
 ok_button_text = "Create / Reset Map"
 
-[node name="NewMapFields" type="VBoxContainer" parent="NewMapDialog"]
+[node name="NewMapFields" type="VBoxContainer" parent="NewMapDialog" unique_id=1750605868]
 custom_minimum_size = Vector2(300, 92)
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 320.0
-offset_bottom = 116.0
+offset_right = 308.0
+offset_bottom = 100.0
 theme_override_constants/separation = 8
 
-[node name="DescriptionLabel" type="Label" parent="NewMapDialog/NewMapFields"]
+[node name="DescriptionLabel" type="Label" parent="NewMapDialog/NewMapFields" unique_id=1484345583]
 layout_mode = 2
 text = "Create a new flat grass map."
 
-[node name="WidthRow" type="HBoxContainer" parent="NewMapDialog/NewMapFields"]
+[node name="WidthRow" type="HBoxContainer" parent="NewMapDialog/NewMapFields" unique_id=27197331]
 layout_mode = 2
 
-[node name="WidthLabel" type="Label" parent="NewMapDialog/NewMapFields/WidthRow"]
+[node name="WidthLabel" type="Label" parent="NewMapDialog/NewMapFields/WidthRow" unique_id=1640687382]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Playable width in chunks"
 
-[node name="WidthSpinBox" type="SpinBox" parent="NewMapDialog/NewMapFields/WidthRow"]
+[node name="WidthSpinBox" type="SpinBox" parent="NewMapDialog/NewMapFields/WidthRow" unique_id=1868256342]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0
 max_value = 512.0
 value = 2.0
 
-[node name="LengthRow" type="HBoxContainer" parent="NewMapDialog/NewMapFields"]
+[node name="LengthRow" type="HBoxContainer" parent="NewMapDialog/NewMapFields" unique_id=2024434813]
 layout_mode = 2
 
-[node name="LengthLabel" type="Label" parent="NewMapDialog/NewMapFields/LengthRow"]
+[node name="LengthLabel" type="Label" parent="NewMapDialog/NewMapFields/LengthRow" unique_id=752655696]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Playable length in chunks"
 
-[node name="LengthSpinBox" type="SpinBox" parent="NewMapDialog/NewMapFields/LengthRow"]
+[node name="LengthSpinBox" type="SpinBox" parent="NewMapDialog/NewMapFields/LengthRow" unique_id=1706226372]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 1.0

@@ -1,4 +1,4 @@
-extends Node
+extends "res://mapeditor/tools/editor_tool.gd"
 class_name EditorBrushTool
 
 @export var brush_data := TerrainBrushData.new()

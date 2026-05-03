@@ -32,6 +32,7 @@ enum EntityToolMode {
 @onready var delete_selected_button: Button = %DeleteSelectedButton
 @onready var delete_last_button: Button = %DeleteLastButton
 @onready var placement_count_label: Label = %PlacementCountLabel
+@onready var validation_label: Label = %ValidationLabel
 
 var _catalog := EntityCatalogScript.new()
 var _syncing := false
@@ -75,6 +76,16 @@ func get_selected_entity_id() -> StringName:
 
 func set_placement_count(count: int) -> void:
 	placement_count_label.text = "Placements: %d" % count
+
+func set_validation_feedback(is_valid: bool, reason: String) -> void:
+	if validation_label == null:
+		return
+	var display_reason := reason if reason.strip_edges() != "" else "Valid"
+	validation_label.text = "Placement: %s" % display_reason
+	validation_label.add_theme_color_override(
+		"font_color",
+		Color(0.55, 1.0, 0.6) if is_valid else Color(1.0, 0.45, 0.28)
+	)
 
 func set_tool_mode(mode: int) -> void:
 	_syncing = true

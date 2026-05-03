@@ -70,6 +70,7 @@ func get_definition(entity_id: StringName) -> Resource:
 	definition.scene = data.get("scene")
 	definition.category = data.get("category", &"unit")
 	definition.default_team_id = data.get("default_team_id", 1)
+	definition.editor_snap_mode = data.get("editor_snap_mode", EntityDefinitionScript.EditorPlacementSnapMode.FREE if definition.category in [&"doodad", &"decor"] else EntityDefinitionScript.EditorPlacementSnapMode.GRID_CENTER)
 	return definition
 
 func has_definition(entity_id: StringName) -> bool:
@@ -80,6 +81,18 @@ func get_entity_ids() -> Array[StringName]:
 	for id in DEFINITIONS.keys():
 		ids.append(id)
 	return ids
+
+func get_resource_entity_entries() -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	for id in get_entity_ids():
+		var definition := get_definition(id)
+		if definition == null or definition.category != &"resource":
+			continue
+		entries.append({
+			"entity_id": id,
+			"display_name": definition.display_name if definition.display_name.strip_edges() != "" else str(id),
+		})
+	return entries
 
 func spawn_entity(entity_id: StringName) -> Node:
 	var definition := get_definition(entity_id)

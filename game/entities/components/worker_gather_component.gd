@@ -18,7 +18,8 @@ const CRYSTAL_RESOURCE_ID := &"crystals"
 const CARGO_PER_TRIP := 1
 
 @export_node_path("Node3D") var entity_parent: NodePath
-@export var search_radius: float = 7.0
+@export var search_radius: float = 15.0
+@export var retry_interval: float = 1.0
 @export var gather_location_arrival_range: float = 1.2
 @export var gather_range: float = 1.6
 @export var harvest_time: float = 0.75
@@ -26,7 +27,10 @@ const CARGO_PER_TRIP := 1
 @export var accepted_resource_ids: Array[StringName] = [&"crystals"]
 
 var current_target: EntityBase = null
+var current_harvest_target: EntityBase = null
+var last_harvest_target: EntityBase = null
 var dropoff_target: EntityBase = null
+var gather_origin := Vector3.ZERO
 var gather_location := Vector3.ZERO
 var has_gather_location := false
 var carried_resource_id: StringName = &""
@@ -34,6 +38,7 @@ var carried_amount: int = 0
 var state := GatherState.IDLE
 
 var _harvest_timer := 0.0
+var _retry_timer := 0.0
 var _drop_off: DropOffComponent = null
 var _terrain: Terrain = null
 var _warned_missing_entity_parent := false
@@ -43,7 +48,7 @@ func _process(delta: float) -> void:
 		GatherState.MOVING_TO_GATHER_LOCATION:
 			_process_moving_to_gather_location()
 		GatherState.SEARCHING_FOR_CRYSTAL:
-			_search_and_move_to_crystal()
+			_process_searching_for_crystal(delta)
 		GatherState.MOVING_TO_CRYSTAL:
 			_process_moving_to_crystal()
 		GatherState.HARVESTING:
@@ -100,10 +105,14 @@ func start_gather_location(location: Vector3, terrain: Terrain = null) -> bool:
 	var movement := _get_movement()
 	if movement != null and terrain != null:
 		movement.set_terrain(terrain)
+	_release_current_claim()
+	gather_origin = location
 	gather_location = location
 	has_gather_location = true
 	current_target = null
+	current_harvest_target = null
 	_harvest_timer = 0.0
+	_retry_timer = 0.0
 	_drop_off = null
 	dropoff_target = null
 	if has_cargo():
@@ -125,10 +134,14 @@ func start_gather(target: EntityBase) -> bool:
 func cancel_gather(keep_cargo: bool = true) -> void:
 	if state == GatherState.IDLE and current_target == null and not has_gather_location:
 		return
+	_release_current_claim()
 	current_target = null
+	current_harvest_target = null
+	last_harvest_target = null
 	_drop_off = null
 	dropoff_target = null
 	_harvest_timer = 0.0
+	_retry_timer = 0.0
 	has_gather_location = false
 	state = GatherState.IDLE
 	if not keep_cargo:
@@ -148,24 +161,38 @@ func _process_moving_to_gather_location() -> void:
 		return
 	if _is_worker_near(gather_location, gather_location_arrival_range):
 		state = GatherState.SEARCHING_FOR_CRYSTAL
+		_retry_timer = 0.0
 		gather_changed.emit()
 		return
 	var movement := _get_movement()
 	if movement != null and not movement.has_move_target():
 		_move_to_gather_location()
 
-func _search_and_move_to_crystal() -> void:
-	current_target = _find_nearest_crystal_near_gather_location()
-	if current_target == null:
-		print("No crystals found near gather location.")
-		state = GatherState.IDLE
-		gather_changed.emit()
+func _process_searching_for_crystal(delta: float) -> void:
+	_retry_timer -= delta
+	if _retry_timer > 0.0:
 		return
-	_move_to_crystal()
+	_retry_timer = maxf(retry_interval, 0.1)
+	_search_and_move_to_crystal()
+
+func _search_and_move_to_crystal() -> void:
+	var search_result := _find_nearest_claimable_crystal_near_gather_origin()
+	current_target = search_result.get("target") as EntityBase
+	if current_target != null:
+		if _claim_current_target():
+			_move_to_crystal()
+		return
+	if bool(search_result.get("has_busy_crystals", false)):
+		_wait_near_busy_crystals()
+		return
+	print("No valid crystals found near gather location.")
+	_clear_gather_command()
 
 func _process_moving_to_crystal() -> void:
 	if not _is_valid_crystal(current_target):
+		_release_current_claim()
 		state = GatherState.SEARCHING_FOR_CRYSTAL
+		_retry_timer = 0.0
 		gather_changed.emit()
 		return
 	if _is_in_range(current_target, gather_range):
@@ -177,7 +204,9 @@ func _process_moving_to_crystal() -> void:
 
 func _process_harvesting(delta: float) -> void:
 	if not _is_valid_crystal(current_target):
+		_release_current_claim()
 		state = GatherState.SEARCHING_FOR_CRYSTAL
+		_retry_timer = 0.0
 		gather_changed.emit()
 		return
 	if not _is_in_range(current_target, gather_range):
@@ -188,15 +217,19 @@ func _process_harvesting(delta: float) -> void:
 		return
 	var harvestable := _get_harvestable(current_target)
 	if harvestable == null or not harvestable.harvest_one():
+		_release_current_claim()
 		state = GatherState.SEARCHING_FOR_CRYSTAL
+		_retry_timer = 0.0
 		gather_changed.emit()
 		return
 	if not pickup_crystal():
 		print("Gather failed: worker already has cargo.")
+		_release_current_claim()
 		state = GatherState.IDLE
 		gather_changed.emit()
 		return
 	print("Worker harvested 1 Crystal. Remaining node amount: %d." % harvestable.get_remaining_amount())
+	_release_current_claim()
 	_start_return_to_dropoff()
 
 func _process_returning_to_dropoff() -> void:
@@ -231,6 +264,7 @@ func _process_returning_to_gather_location() -> void:
 		return
 	if _is_worker_near(gather_location, gather_location_arrival_range):
 		state = GatherState.SEARCHING_FOR_CRYSTAL
+		_retry_timer = 0.0
 		gather_changed.emit()
 		return
 	var movement := _get_movement()
@@ -254,7 +288,9 @@ func _move_to_gather_location() -> void:
 
 func _move_to_crystal() -> void:
 	if not _is_valid_crystal(current_target):
+		_release_current_claim()
 		state = GatherState.SEARCHING_FOR_CRYSTAL
+		_retry_timer = 0.0
 		gather_changed.emit()
 		return
 	var movement := _get_movement()
@@ -263,7 +299,9 @@ func _move_to_crystal() -> void:
 			_start_harvesting()
 		else:
 			print("Gather failed: could not move near crystal.")
+			_release_current_claim()
 			state = GatherState.SEARCHING_FOR_CRYSTAL
+			_retry_timer = 0.0
 			gather_changed.emit()
 		return
 	state = GatherState.MOVING_TO_CRYSTAL
@@ -273,7 +311,9 @@ func _move_to_crystal() -> void:
 func _start_harvesting() -> void:
 	var harvestable := _get_harvestable(current_target)
 	if harvestable == null or not harvestable.has_available_resource():
+		_release_current_claim()
 		state = GatherState.SEARCHING_FOR_CRYSTAL
+		_retry_timer = 0.0
 		gather_changed.emit()
 		return
 	_harvest_timer = maxf(harvest_time, harvestable.harvest_time)
@@ -334,23 +374,80 @@ func _return_to_gather_location() -> void:
 	state = GatherState.RETURNING_TO_GATHER_LOCATION
 	_move_to_gather_location()
 
-func _find_nearest_crystal_near_gather_location() -> EntityBase:
+func _find_nearest_claimable_crystal_near_gather_origin() -> Dictionary:
 	var worker := get_entity_parent()
 	if worker == null:
-		return null
+		return {"target": null, "has_busy_crystals": false}
 	var best: EntityBase = null
 	var best_distance := INF
+	var has_busy_crystals := false
 	for node in get_tree().get_nodes_in_group("harvestable_resources"):
 		var entity := node as EntityBase
 		if not _is_valid_crystal(entity):
 			continue
-		if _flat_distance(entity.global_position, gather_location) > search_radius:
+		if _flat_distance(entity.global_position, gather_origin) > search_radius:
+			continue
+		var harvestable := _get_harvestable(entity)
+		if harvestable == null:
+			continue
+		if not harvestable.can_claim(worker):
+			if harvestable.is_claimed_by_other(worker):
+				has_busy_crystals = true
 			continue
 		var distance := _flat_distance(worker.global_position, entity.global_position)
 		if distance < best_distance:
 			best_distance = distance
 			best = entity
-	return best
+	return {"target": best, "has_busy_crystals": has_busy_crystals}
+
+func _claim_current_target() -> bool:
+	var worker := get_entity_parent()
+	var harvestable := _get_harvestable(current_target)
+	if worker == null or harvestable == null:
+		current_target = null
+		state = GatherState.SEARCHING_FOR_CRYSTAL
+		_retry_timer = 0.0
+		gather_changed.emit()
+		return false
+	if not harvestable.claim(worker):
+		current_target = null
+		state = GatherState.SEARCHING_FOR_CRYSTAL
+		_retry_timer = maxf(retry_interval, 0.1)
+		gather_changed.emit()
+		return false
+	current_harvest_target = current_target
+	last_harvest_target = current_target
+	return true
+
+func _release_current_claim() -> void:
+	var worker := get_entity_parent()
+	var harvestable := _get_harvestable(current_harvest_target)
+	if worker != null and harvestable != null:
+		harvestable.release_claim(worker)
+	current_harvest_target = null
+
+func _wait_near_busy_crystals() -> void:
+	var wait_position := gather_origin
+	if last_harvest_target != null and is_instance_valid(last_harvest_target):
+		wait_position = last_harvest_target.global_position
+	gather_location = wait_position
+	var movement := _get_movement()
+	if movement != null and _terrain != null:
+		movement.set_terrain(_terrain)
+		if not _is_worker_near(wait_position, gather_location_arrival_range):
+			movement.request_move_to(wait_position)
+	state = GatherState.SEARCHING_FOR_CRYSTAL
+	gather_changed.emit()
+
+func _clear_gather_command() -> void:
+	_release_current_claim()
+	current_target = null
+	current_harvest_target = null
+	has_gather_location = false
+	_harvest_timer = 0.0
+	_retry_timer = 0.0
+	state = GatherState.IDLE
+	gather_changed.emit()
 
 func _find_nearest_drop_off() -> DropOffComponent:
 	var worker := get_entity_parent()
